@@ -176,14 +176,16 @@ button, input, select { font: inherit; }
 .select-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; color: var(--muted-foreground); font-size: 11px; }
 .filter-select-trigger { width: 170px; min-width: 0; justify-content: flex-end; font-size: 11px; }
 .filter-select-trigger [data-slot="select-value"] { justify-content: flex-end; text-align: right; }
-.desktop-filter-footer { position: sticky; bottom: 0; margin-top: auto; padding-top: 16px; background: var(--background); }
+.wide-filter-select-content { width: max-content; min-width: var(--anchor-width); max-width: min(30rem, calc(100vw - 32px)); }
+.desktop-filter-footer { padding-top: 16px; }
 .desktop-filter-footer button { width: 100%; }
 .map-actions { position: absolute; z-index: 2; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
-.basemap-trigger, .fit-map-button { background: color-mix(in oklch, var(--background) 94%, transparent); box-shadow: 0 5px 18px rgba(0, 0, 0, .12); font-size: 11px; font-weight: 650; backdrop-filter: blur(8px); }
+.basemap-trigger { background: color-mix(in oklch, var(--background) 94%, transparent); box-shadow: 0 5px 18px rgba(0, 0, 0, .12); font-size: 11px; font-weight: 650; backdrop-filter: blur(8px); }
 .basemap-trigger { min-width: 94px; }
-.empty-results { position: absolute; z-index: 6; top: 50%; left: 50%; display: flex; width: 235px; transform: translate(-50%, -50%); flex-direction: column; align-items: center; gap: 7px; padding: 18px; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in oklch, var(--popover) 95%, transparent); box-shadow: 0 12px 35px rgba(0, 0, 0, .15); text-align: center; }
-.empty-results strong { font-size: 14px; }
-.empty-results span { margin-bottom: 5px; color: var(--muted-foreground); font-size: 11px; }
+.empty-results-toast { position: absolute; z-index: 6; right: 16px; bottom: 16px; width: min(340px, calc(100% - 32px)); padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in oklch, var(--popover) 95%, transparent); box-shadow: 0 12px 35px rgba(0, 0, 0, .15); backdrop-filter: blur(10px); }
+.empty-results-toast div { display: grid; gap: 3px; }
+.empty-results-toast strong { font-size: 12px; }
+.empty-results-toast span { color: var(--muted-foreground); font-size: 11px; }
 .crash-popup { width: 244px; padding: 2px 2px 4px; color: var(--popover-foreground); }
 .popup-kicker { display: flex; align-items: center; gap: 7px; margin: 0 22px 5px 0; color: var(--popover-foreground); font-size: 14px; font-weight: 720; line-height: 1.25; letter-spacing: -.015em; }
 .popup-place { display: flex; align-items: center; gap: 8px; min-width: 0; margin: 0 22px 10px 0; }
@@ -191,7 +193,7 @@ button, input, select { font: inherit; }
 .severity-dot { width: 8px; height: 8px; flex: none; border-radius: 50%; }
 .popup-location { display: flex; flex: none; align-items: center; gap: 4px; margin: 0; color: var(--muted-foreground); font-size: 10px; }
 .crash-popup dl { display: grid; gap: 7px; margin: 0 0 9px; padding: 9px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.crash-popup dl div { display: grid; grid-template-columns: 57px 1fr; gap: 6px; font-size: 10px; line-height: 1.35; }
+.crash-popup dl div { display: grid; grid-template-columns: 82px 1fr; gap: 6px; font-size: 10px; line-height: 1.35; }
 .crash-popup dt { color: var(--muted-foreground); }
 .crash-popup dd { margin: 0; color: var(--popover-foreground); }
 .crash-popup small { color: var(--muted-foreground); font-size: 9px; }
@@ -211,6 +213,7 @@ button, input, select { font: inherit; }
   .workspace { grid-column: 1; grid-row: 2; display: block; min-height: 0; }
   .map-panel { width: 100%; height: 100%; min-height: 0; }
   .map-legend { right: 12px; bottom: 72px; justify-content: center; }
+  .empty-results-toast { right: 12px; bottom: 128px; width: min(340px, calc(100% - 24px)); }
   .map-actions { top: 10px; right: 10px; }
   .mobile-filter-trigger { position: absolute; z-index: 8; right: 14px; bottom: 17px; display: flex; align-items: center; gap: 7px; box-shadow: 0 8px 25px rgba(0, 0, 0, .27); }
   .filter-count-badge { height: 18px; min-width: 18px; padding: 0 5px; font-size: 10px; }

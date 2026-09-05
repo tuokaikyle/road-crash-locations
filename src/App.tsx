@@ -58,6 +58,7 @@ export function App() {
   const [filters, setFilters] = useState<CrashFilters>(DEFAULT_FILTERS)
   const [error, setError] = useState("")
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
+  const [emptyResultsDismissed, setEmptyResultsDismissed] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -124,7 +125,25 @@ export function App() {
 
   const clearFilters = () => {
     setFilters(DEFAULT_FILTERS)
+    setEmptyResultsDismissed(false)
   }
+
+  const handleFiltersChange = (nextFilters: CrashFilters) => {
+    setFilters(nextFilters)
+    setEmptyResultsDismissed(false)
+  }
+
+  useEffect(() => {
+    if (
+      !crashes.length ||
+      filteredCrashes.length !== 0 ||
+      emptyResultsDismissed
+    )
+      return
+
+    const timeout = window.setTimeout(() => setEmptyResultsDismissed(true), 5000)
+    return () => window.clearTimeout(timeout)
+  }, [crashes.length, emptyResultsDismissed, filteredCrashes.length])
 
   return (
     <main className="app-shell">
@@ -148,6 +167,7 @@ export function App() {
             setError("")
             setDatasetId(nextDatasetId)
             setFilters(DEFAULT_FILTERS)
+            setEmptyResultsDismissed(false)
           }}
         >
           <SelectTrigger
@@ -183,15 +203,17 @@ export function App() {
             </div>
           )}
 
-          {!error && crashes.length > 0 && filteredCrashes.length === 0 && (
-            <div className="empty-results">
-              <strong>No crashes match</strong>
-              <span>Try widening or resetting the filters.</span>
-              <Button size="sm" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            </div>
-          )}
+          {!error &&
+            crashes.length > 0 &&
+            filteredCrashes.length === 0 &&
+            !emptyResultsDismissed && (
+              <div className="empty-results-toast" role="status">
+                <div>
+                  <strong>No crashes match</strong>
+                  <span>Try widening or resetting the filters.</span>
+                </div>
+              </div>
+            )}
 
           <div className="map-legend" aria-label="Crash severity legend">
             {SEVERITIES.map((severity) => (
@@ -224,7 +246,7 @@ export function App() {
           resultCount={filteredCrashes.length}
           activeCount={activeFilterCount}
           mobileOpen={mobileFiltersOpen}
-          onChange={setFilters}
+          onChange={handleFiltersChange}
           onClear={clearFilters}
           onClose={() => setMobileFiltersOpen(false)}
         />

@@ -1,4 +1,4 @@
-import { Search, X } from "lucide-react"
+import { RotateCcw, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -183,7 +183,9 @@ export function FilterPanel({
               {severity}
             </span>
             <span className="check-meta">
-              <small>{severityCounts.get(severity)?.toLocaleString()}</small>
+              <small>
+                {severityCounts.get(severity)?.toLocaleString()} in total
+              </small>
               <Checkbox
                 checked={filters.severities.includes(severity)}
                 onCheckedChange={() => toggleSeverity(severity)}
@@ -252,6 +254,7 @@ export function FilterPanel({
           onChange={(value) => update("roadFeature", value)}
           options={roadFeatures}
           allLabel="Any road feature"
+          wideMenu
         />
         <SelectRow
           label="DCA group"
@@ -260,6 +263,7 @@ export function FilterPanel({
           options={dcaGroups}
           optionLabels={dcaGroupLabels}
           allLabel="Any DCA group"
+          wideMenu
         />
       </fieldset>
 
@@ -271,7 +275,8 @@ export function FilterPanel({
             onClick={onClear}
             disabled={!activeCount}
           >
-            <X /> Clear
+            <RotateCcw />
+            Reset
           </Button>
         </div>
       )}
@@ -284,7 +289,8 @@ export function FilterPanel({
             onClick={onClear}
             disabled={!activeCount}
           >
-            Clear
+            <RotateCcw />
+            Reset
           </Button>
           <SheetClose render={<Button type="button" />}>
             Show results
@@ -330,6 +336,7 @@ type SelectRowProps = {
   allLabel: string
   optionLabels?: Record<string, string>
   onChange: (value: string) => void
+  wideMenu?: boolean
 }
 
 function SelectRow({
@@ -339,6 +346,7 @@ function SelectRow({
   allLabel,
   optionLabels,
   onChange,
+  wideMenu = false,
 }: SelectRowProps) {
   const items = [
     { value: "any", label: allLabel },
@@ -365,7 +373,10 @@ function SelectRow({
         >
           <SelectValue />
         </SelectTrigger>
-        <SelectContent align="end">
+        <SelectContent
+          align="end"
+          className={wideMenu ? "wide-filter-select-content" : undefined}
+        >
           <SelectItem value="any">{allLabel}</SelectItem>
           {options.map((option) => (
             <SelectItem value={option} key={option}>
