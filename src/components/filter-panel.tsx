@@ -1,7 +1,28 @@
-import { ChevronDown, Search, SlidersHorizontal, X } from "lucide-react"
+import { Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { SEVERITIES, type CrashRecord, type CrashSeverity } from "@/lib/crashes"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import {
+  SEVERITIES,
+  SEVERITY_COLORS,
+  type CrashRecord,
+  type CrashSeverity,
+} from "@/lib/crashes"
 
 export type TimeRange = "any" | "morning" | "afternoon" | "evening" | "night"
 export type RoadUser = "any" | "pedestrian" | "bicycle" | "motorcycle" | "truck"
@@ -10,119 +31,294 @@ export type CrashFilters = {
   query: string
   severities: CrashSeverity[]
   month: string
-  day: string
   timeRange: TimeRange
   crashType: string
   roadUser: RoadUser
   surface: string
+  roadFeature: string
+  dcaGroup: string
 }
 
 type FilterPanelProps = {
   filters: CrashFilters
   crashes: CrashRecord[]
+  resultCount: number
   activeCount: number
   mobileOpen: boolean
   onChange: (next: CrashFilters) => void
-  onReset: () => void
+  onClear: () => void
   onClose: () => void
 }
 
-const MONTH_ORDER = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-const DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-const severityColors: Record<CrashSeverity, string> = {
-  Fatal: "#a22727",
-  Hospitalisation: "#df5a36",
-  "Medical treatment": "#dfa62e",
-  "Minor injury": "#2478a6",
-}
-
+const MONTH_ORDER = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+]
 function sortedOptions(values: string[], preferredOrder?: string[]) {
   const unique = [...new Set(values.filter(Boolean))]
-  if (preferredOrder) return unique.sort((a, b) => preferredOrder.indexOf(a) - preferredOrder.indexOf(b))
+  if (preferredOrder)
+    return unique.sort(
+      (a, b) => preferredOrder.indexOf(a) - preferredOrder.indexOf(b)
+    )
   return unique.sort((a, b) => a.localeCompare(b))
 }
 
-export function FilterPanel({ filters, crashes, activeCount, mobileOpen, onChange, onReset, onClose }: FilterPanelProps) {
-  const months = sortedOptions(crashes.map((crash) => crash.month), MONTH_ORDER)
-  const days = sortedOptions(crashes.map((crash) => crash.dayOfWeek), DAY_ORDER)
+export function FilterPanel({
+  filters,
+  crashes,
+  resultCount,
+  activeCount,
+  mobileOpen,
+  onChange,
+  onClear,
+  onClose,
+}: FilterPanelProps) {
+  const months = sortedOptions(
+    crashes.map((crash) => crash.month),
+    MONTH_ORDER
+  )
   const crashTypes = sortedOptions(crashes.map((crash) => crash.crashType))
   const surfaces = sortedOptions(crashes.map((crash) => crash.surfaceCondition))
-  const severityCounts = new Map(SEVERITIES.map((severity) => [severity, crashes.filter((crash) => crash.severity === severity).length]))
+  const roadFeatures = sortedOptions(
+    crashes.map((crash) => crash.roadwayFeature)
+  )
+  const dcaGroups = sortedOptions(crashes.map((crash) => crash.dcaGroup))
+  const dcaGroupLabels = Object.fromEntries(
+    dcaGroups.map((value) => [value, value.replace(/^\d+: /, "")])
+  )
+  const severityCounts = new Map(
+    SEVERITIES.map((severity) => [
+      severity,
+      crashes.filter((crash) => crash.severity === severity).length,
+    ])
+  )
 
-  const update = <Key extends keyof CrashFilters>(key: Key, value: CrashFilters[Key]) => {
+  const update = <Key extends keyof CrashFilters>(
+    key: Key,
+    value: CrashFilters[Key]
+  ) => {
     onChange({ ...filters, [key]: value })
   }
 
   const toggleSeverity = (severity: CrashSeverity) => {
     const selected = filters.severities.includes(severity)
-    update("severities", selected ? filters.severities.filter((item) => item !== severity) : [...filters.severities, severity])
+    update(
+      "severities",
+      selected
+        ? filters.severities.filter((item) => item !== severity)
+        : [...filters.severities, severity]
+    )
   }
+
+  const renderFilterContent = (mobile: boolean) => (
+    <>
+      <div className="filter-heading">
+        <div>
+          {mobile ? (
+            <SheetTitle className="filter-title">Filter</SheetTitle>
+          ) : (
+            <h2>Filter</h2>
+          )}
+          <p className="filter-result-count" aria-live="polite">
+            <strong>{resultCount.toLocaleString()}</strong> results
+          </p>
+        </div>
+        {mobile && (
+          <SheetClose
+            render={
+              <Button
+                className="mobile-close"
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                aria-label="Close filters"
+              />
+            }
+          >
+            <X />
+          </SheetClose>
+        )}
+      </div>
+
+      <div className="search-field">
+        <Search className="search-icon" />
+        <Input
+          className="search-input"
+          type="search"
+          value={filters.query}
+          onChange={(event) => update("query", event.target.value)}
+          placeholder="Street or suburb"
+          aria-label="Search street or suburb"
+        />
+        {filters.query && (
+          <Button
+            className="search-clear"
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => update("query", "")}
+            aria-label="Clear search"
+          >
+            <X />
+          </Button>
+        )}
+      </div>
+
+      <fieldset className="filter-group">
+        <legend>Severity</legend>
+        {SEVERITIES.map((severity) => (
+          <label className="check-row group/field-label" key={severity}>
+            <span>
+              <i style={{ backgroundColor: SEVERITY_COLORS[severity] }} />
+              {severity}
+            </span>
+            <span className="check-meta">
+              <small>{severityCounts.get(severity)?.toLocaleString()}</small>
+              <Checkbox
+                checked={filters.severities.includes(severity)}
+                onCheckedChange={() => toggleSeverity(severity)}
+              />
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      <fieldset className="filter-group compact-group">
+        <legend>When</legend>
+        <SelectRow
+          label="Month"
+          value={filters.month}
+          onChange={(value) => update("month", value)}
+          options={months}
+          allLabel="All months"
+        />
+        <SelectRow
+          label="Time of day"
+          value={filters.timeRange}
+          onChange={(value) => update("timeRange", value as TimeRange)}
+          allLabel="Any time"
+          options={["morning", "afternoon", "evening", "night"]}
+          optionLabels={{
+            morning: "Morning · 5–11",
+            afternoon: "Afternoon · 12–16",
+            evening: "Evening · 17–20",
+            night: "Night · 21–4",
+          }}
+        />
+      </fieldset>
+
+      <fieldset className="filter-group compact-group">
+        <legend>Crash details</legend>
+        <SelectRow
+          label="Crash type"
+          value={filters.crashType}
+          onChange={(value) => update("crashType", value)}
+          options={crashTypes}
+          allLabel="All types"
+        />
+        <SelectRow
+          label="Road user"
+          value={filters.roadUser}
+          onChange={(value) => update("roadUser", value as RoadUser)}
+          options={["pedestrian", "bicycle", "motorcycle", "truck"]}
+          allLabel="Any road user"
+          optionLabels={{
+            pedestrian: "Pedestrian",
+            bicycle: "Bicycle",
+            motorcycle: "Motorcycle",
+            truck: "Truck",
+          }}
+        />
+        <SelectRow
+          label="Road surface"
+          value={filters.surface}
+          onChange={(value) => update("surface", value)}
+          options={surfaces}
+          allLabel="Any surface"
+        />
+        <SelectRow
+          label="Road feature"
+          value={filters.roadFeature}
+          onChange={(value) => update("roadFeature", value)}
+          options={roadFeatures}
+          allLabel="Any road feature"
+        />
+        <SelectRow
+          label="DCA group"
+          value={filters.dcaGroup}
+          onChange={(value) => update("dcaGroup", value)}
+          options={dcaGroups}
+          optionLabels={dcaGroupLabels}
+          allLabel="Any DCA group"
+        />
+      </fieldset>
+
+      {!mobile && (
+        <div className="desktop-filter-footer">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClear}
+            disabled={!activeCount}
+          >
+            <X /> Clear
+          </Button>
+        </div>
+      )}
+
+      {mobile && (
+        <div className="mobile-filter-footer">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClear}
+            disabled={!activeCount}
+          >
+            Clear
+          </Button>
+          <SheetClose render={<Button type="button" />}>
+            Show results
+          </SheetClose>
+        </div>
+      )}
+    </>
+  )
 
   return (
     <>
-      <button className={`filter-backdrop ${mobileOpen ? "is-open" : ""}`} aria-label="Close filters" onClick={onClose} />
-      <aside className={`filter-panel ${mobileOpen ? "is-open" : ""}`} aria-label="Crash filters">
-        <div className="filter-heading">
-          <div><span className="eyebrow">Explore the data</span><h2>Filter crashes</h2></div>
-          <SlidersHorizontal className="desktop-filter-icon" size={18} />
-          <button className="mobile-close" type="button" onClick={onClose} aria-label="Close filters"><X size={18} /></button>
-        </div>
-
-        <label className="search-field">
-          <Search size={16} />
-          <input
-            type="search"
-            value={filters.query}
-            onChange={(event) => update("query", event.target.value)}
-            placeholder="Street or suburb"
-            aria-label="Search street or suburb"
-          />
-          {filters.query && <button type="button" onClick={() => update("query", "")} aria-label="Clear search"><X size={14} /></button>}
-        </label>
-
-        <fieldset className="filter-group">
-          <legend>Severity</legend>
-          {SEVERITIES.map((severity) => (
-            <label className="check-row" key={severity}>
-              <span><i style={{ backgroundColor: severityColors[severity] }} />{severity}</span>
-              <span className="check-meta"><small>{severityCounts.get(severity)?.toLocaleString()}</small><input type="checkbox" checked={filters.severities.includes(severity)} onChange={() => toggleSeverity(severity)} /></span>
-            </label>
-          ))}
-        </fieldset>
-
-        <fieldset className="filter-group compact-group">
-          <legend>When</legend>
-          <SelectRow label="Month" value={filters.month} onChange={(value) => update("month", value)} options={months} allLabel="All months" />
-          <SelectRow label="Day of week" value={filters.day} onChange={(value) => update("day", value)} options={days} allLabel="All days" />
-          <SelectRow
-            label="Time of day"
-            value={filters.timeRange}
-            onChange={(value) => update("timeRange", value as TimeRange)}
-            allLabel="Any time"
-            options={["morning", "afternoon", "evening", "night"]}
-            optionLabels={{ morning: "Morning · 5–11", afternoon: "Afternoon · 12–16", evening: "Evening · 17–20", night: "Night · 21–4" }}
-          />
-        </fieldset>
-
-        <fieldset className="filter-group compact-group">
-          <legend>Crash details</legend>
-          <SelectRow label="Crash type" value={filters.crashType} onChange={(value) => update("crashType", value)} options={crashTypes} allLabel="All types" />
-          <SelectRow
-            label="Road user"
-            value={filters.roadUser}
-            onChange={(value) => update("roadUser", value as RoadUser)}
-            options={["pedestrian", "bicycle", "motorcycle", "truck"]}
-            allLabel="Any road user"
-            optionLabels={{ pedestrian: "Pedestrian", bicycle: "Bicycle", motorcycle: "Motorcycle", truck: "Truck" }}
-          />
-          <SelectRow label="Road surface" value={filters.surface} onChange={(value) => update("surface", value)} options={surfaces} allLabel="Any surface" />
-        </fieldset>
-
-        <div className="mobile-filter-footer">
-          <Button type="button" variant="outline" onClick={onReset} disabled={!activeCount}>Reset</Button>
-          <Button type="button" onClick={onClose}>Show results</Button>
-        </div>
+      <aside
+        className="filter-panel desktop-filter-panel"
+        aria-label="Crash filters"
+      >
+        {renderFilterContent(false)}
       </aside>
+      <Sheet
+        open={mobileOpen}
+        onOpenChange={(open) => {
+          if (!open) onClose()
+        }}
+      >
+        <SheetContent
+          className="mobile-filter-sheet"
+          side="bottom"
+          showCloseButton={false}
+        >
+          <SheetDescription className="sr-only">
+            Filter crashes shown on the map.
+          </SheetDescription>
+          {renderFilterContent(true)}
+        </SheetContent>
+      </Sheet>
     </>
   )
 }
@@ -136,18 +332,48 @@ type SelectRowProps = {
   onChange: (value: string) => void
 }
 
-function SelectRow({ label, value, options, allLabel, optionLabels, onChange }: SelectRowProps) {
+function SelectRow({
+  label,
+  value,
+  options,
+  allLabel,
+  optionLabels,
+  onChange,
+}: SelectRowProps) {
+  const items = [
+    { value: "any", label: allLabel },
+    ...options.map((option) => ({
+      value: option,
+      label: optionLabels?.[option] ?? option,
+    })),
+  ]
+
   return (
-    <label className="select-row">
+    <div className="select-row">
       <span>{label}</span>
-      <span className="select-wrap">
-        <select value={value} onChange={(event) => onChange(event.target.value)}>
-          <option value="any">{allLabel}</option>
-          {options.map((option) => <option value={option} key={option}>{optionLabels?.[option] ?? option}</option>)}
-        </select>
-        <ChevronDown size={13} />
-      </span>
-    </label>
+      <Select
+        items={items}
+        value={value}
+        onValueChange={(nextValue) => {
+          if (nextValue !== null) onChange(nextValue)
+        }}
+      >
+        <SelectTrigger
+          className="filter-select-trigger"
+          size="sm"
+          aria-label={label}
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent align="end">
+          <SelectItem value="any">{allLabel}</SelectItem>
+          {options.map((option) => (
+            <SelectItem value={option} key={option}>
+              {optionLabels?.[option] ?? option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   )
 }
-

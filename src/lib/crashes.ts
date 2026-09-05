@@ -7,6 +7,31 @@ export const SEVERITIES = [
 
 export type CrashSeverity = (typeof SEVERITIES)[number]
 
+export const SEVERITY_COLORS: Record<CrashSeverity, string> = {
+  Fatal: "#450a0a",
+  Hospitalisation: "#991b1b",
+  "Medical treatment": "#dc2626",
+  "Minor injury": "#f87171",
+}
+
+export const CRASH_DATASETS = [
+  {
+    id: "2025-h1",
+    label: "2025 · Jan–Jun",
+    description: "Jan–Jun 2025",
+    url: "/_QLD_Road_Traffic_Crashes_csv__2025_june30.tsv",
+  },
+  {
+    id: "2024",
+    label: "2024 · Full year",
+    description: "Full year 2024",
+    url: "/_QLD_Road_Traffic_Crashes_csv__2024.tsv",
+  },
+] as const
+
+export type CrashDatasetId = (typeof CRASH_DATASETS)[number]["id"]
+export const DEFAULT_CRASH_DATASET_ID: CrashDatasetId = "2025-h1"
+
 export type CrashRecord = {
   id: number
   reference: string
@@ -45,8 +70,6 @@ export type CrashRecord = {
   pedestrians: number
   otherUnits: number
 }
-
-const DATA_URL = "/_QLD_Road_Traffic_Crashes_csv__2025.tsv"
 
 function parseTsv(text: string) {
   const rows: string[][] = []
@@ -144,9 +167,14 @@ export function parseCrashes(text: string): CrashRecord[] {
   })
 }
 
-export async function loadCrashes(signal?: AbortSignal) {
-  const response = await fetch(DATA_URL, { signal })
+export async function loadCrashes(
+  datasetId: CrashDatasetId,
+  signal?: AbortSignal
+) {
+  const dataset = CRASH_DATASETS.find((item) => item.id === datasetId)
+  if (!dataset) throw new Error("Unknown crash dataset")
+
+  const response = await fetch(dataset.url, { signal })
   if (!response.ok) throw new Error(`Unable to load crash data (${response.status})`)
   return parseCrashes(await response.text())
 }
-
