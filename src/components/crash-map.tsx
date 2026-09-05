@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Focus, Layers2, MapPin } from "lucide-react"
+import { Layers2, MapPin } from "lucide-react"
 import Map, {
   Layer,
   NavigationControl,
@@ -7,13 +7,13 @@ import Map, {
   Source,
   type LayerProps,
   type MapLayerMouseEvent,
+  type MapLayerTouchEvent,
   type MapRef,
 } from "react-map-gl/maplibre"
 import type { FeatureCollection, Point } from "geojson"
 import type { GeoJSONSource } from "maplibre-gl"
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
 
-import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -41,6 +41,20 @@ const BASEMAP_OPTIONS: { value: Basemap; label: string }[] = [
   { value: "streets", label: "Streets" },
   { value: "dark", label: "Dark" },
 ]
+
+function roadUserLabel(crash: CrashRecord) {
+  return (
+    [
+      ["Pedestrian", crash.pedestrians],
+      ["Bicycle", crash.bicycles],
+      ["Motorcycle", crash.motorcycles],
+      ["Truck", crash.trucks],
+    ]
+      .filter(([, count]) => count > 0)
+      .map(([label]) => label)
+      .join(", ") || "None recorded"
+  )
+}
 
 function getInitialBasemap(): Basemap {
   const storedBasemap = localStorage.getItem(BASEMAP_STORAGE_KEY)
@@ -171,6 +185,15 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
     })
   }
 
+  const handleTouchEnd = (event: MapLayerTouchEvent) => {
+    const feature = event.features?.[0]
+    setSelectedId(
+      feature?.layer.id === "crash-points"
+        ? Number(feature.properties?.id)
+        : null
+    )
+  }
+
   const handleMouseMove = (event: MapLayerMouseEvent) => {
     const feature = event.features?.[0]
     setCursor(feature ? "pointer" : "grab")
@@ -199,6 +222,7 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
       minZoom={10}
       interactiveLayerIds={["crash-clusters", "crash-points"]}
       onClick={handleClick}
+      onTouchEnd={handleTouchEnd}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => {
         setCursor("grab")
@@ -249,24 +273,33 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
             <dl>
               <div>
                 <dt>Time</dt>
-                <dd>{String(selectedCrash.hour).padStart(2, "0")}:00</dd>
-              </div>
-              <div>
-                <dt>Crash</dt>
                 <dd>
-                  {selectedCrash.nature} · {selectedCrash.crashType}
+                  {String(selectedCrash.hour).padStart(2, "0")}:00 ·{" "}
+                  {selectedCrash.dayOfWeek}
                 </dd>
               </div>
               <div>
-                <dt>Conditions</dt>
-                <dd>
-                  {selectedCrash.atmosphericCondition} ·{" "}
-                  {selectedCrash.surfaceCondition}
-                </dd>
+                <dt>Crash type</dt>
+                <dd>{selectedCrash.crashType || "Not recorded"}</dd>
               </div>
               <div>
-                <dt>Casualties</dt>
-                <dd>{selectedCrash.casualtyTotal}</dd>
+                <dt>Road user</dt>
+                <dd>{roadUserLabel(selectedCrash)}</dd>
+              </div>
+              <div>
+                <dt>Road surface</dt>
+                <dd>{selectedCrash.surfaceCondition || "Not recorded"}</dd>
+              </div>
+              <div>
+                <dt>Road feature</dt>
+                <dd>{selectedCrash.roadwayFeature || "Not recorded"}</dd>
+              </div>
+              <div>
+                <dt>DCA group</dt>
+                <dd>
+                  {selectedCrash.dcaGroup.replace(/^\d+: /, "") ||
+                    "Not recorded"}
+                </dd>
               </div>
             </dl>
             <small>Crash reference {selectedCrash.reference}</small>
@@ -300,38 +333,6 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
             ))}
           </SelectContent>
         </Select>
-        <Button
-          className="fit-map-button"
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            if (!crashes.length) return
-            const bounds = crashes.reduce(
-              (current, crash) =>
-                [
-                  Math.min(current[0], crash.longitude),
-                  Math.min(current[1], crash.latitude),
-                  Math.max(current[2], crash.longitude),
-                  Math.max(current[3], crash.latitude),
-                ] as [number, number, number, number],
-              [Infinity, Infinity, -Infinity, -Infinity] as [
-                number,
-                number,
-                number,
-                number,
-              ]
-            )
-            mapRef.current?.fitBounds(bounds, {
-              padding: 72,
-              duration: 700,
-              maxZoom: 14,
-            })
-          }}
-        >
-          <Focus size={15} />
-          Fit results
-        </Button>
       </div>
     </Map>
   )
