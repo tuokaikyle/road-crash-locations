@@ -1,21 +1,37 @@
 import { useEffect, useMemo, useState } from "react"
-import { CarFront, LoaderCircle, RotateCcw, SlidersHorizontal } from "lucide-react"
+import { LoaderCircle, Road, SlidersHorizontal } from "lucide-react"
 
 import { CrashMap } from "@/components/crash-map"
 import { FilterPanel, type CrashFilters } from "@/components/filter-panel"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { loadCrashes, SEVERITIES, type CrashRecord } from "@/lib/crashes"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  CRASH_DATASETS,
+  DEFAULT_CRASH_DATASET_ID,
+  loadCrashes,
+  SEVERITIES,
+  SEVERITY_COLORS,
+  type CrashDatasetId,
+  type CrashRecord,
+} from "@/lib/crashes"
 
-const severityColors = ["#a22727", "#df5a36", "#dfa62e", "#2478a6"]
 const DEFAULT_FILTERS: CrashFilters = {
   query: "",
   severities: [...SEVERITIES],
   month: "any",
-  day: "any",
   timeRange: "any",
   crashType: "any",
   roadUser: "any",
   surface: "any",
+  roadFeature: "any",
+  dcaGroup: "any",
 }
 
 function matchesTimeRange(hour: number, range: CrashFilters["timeRange"]) {
@@ -36,103 +52,180 @@ function hasRoadUser(crash: CrashRecord, roadUser: CrashFilters["roadUser"]) {
 
 export function App() {
   const [crashes, setCrashes] = useState<CrashRecord[]>([])
+  const [datasetId, setDatasetId] = useState<CrashDatasetId>(
+    DEFAULT_CRASH_DATASET_ID
+  )
   const [filters, setFilters] = useState<CrashFilters>(DEFAULT_FILTERS)
   const [error, setError] = useState("")
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
-  const [fitRequest, setFitRequest] = useState(1)
 
   useEffect(() => {
     const controller = new AbortController()
-    loadCrashes(controller.signal).then(setCrashes).catch((reason: unknown) => {
-      if (reason instanceof DOMException && reason.name === "AbortError") return
-      setError(reason instanceof Error ? reason.message : "Unable to load crash data")
-    })
+    loadCrashes(datasetId, controller.signal)
+      .then(setCrashes)
+      .catch((reason: unknown) => {
+        if (reason instanceof DOMException && reason.name === "AbortError")
+          return
+        setError(
+          reason instanceof Error ? reason.message : "Unable to load crash data"
+        )
+      })
     return () => controller.abort()
-  }, [])
+  }, [datasetId])
+
+  const selectedDataset = CRASH_DATASETS.find(
+    (dataset) => dataset.id === datasetId
+  )!
 
   const filteredCrashes = useMemo(() => {
     const query = filters.query.trim().toLocaleLowerCase()
 
     return crashes.filter((crash) => {
-      const searchable = [crash.street, crash.intersectingStreet, crash.stateRoadName, crash.suburb].join(" ").toLocaleLowerCase()
+      const searchable = [
+        crash.street,
+        crash.intersectingStreet,
+        crash.stateRoadName,
+        crash.suburb,
+      ]
+        .join(" ")
+        .toLocaleLowerCase()
       return (
         (!query || searchable.includes(query)) &&
         filters.severities.includes(crash.severity) &&
         (filters.month === "any" || crash.month === filters.month) &&
-        (filters.day === "any" || crash.dayOfWeek === filters.day) &&
         matchesTimeRange(crash.hour, filters.timeRange) &&
-        (filters.crashType === "any" || crash.crashType === filters.crashType) &&
+        (filters.crashType === "any" ||
+          crash.crashType === filters.crashType) &&
         hasRoadUser(crash, filters.roadUser) &&
-        (filters.surface === "any" || crash.surfaceCondition === filters.surface)
+        (filters.surface === "any" ||
+          crash.surfaceCondition === filters.surface) &&
+        (filters.roadFeature === "any" ||
+          crash.roadwayFeature === filters.roadFeature) &&
+        (filters.dcaGroup === "any" || crash.dcaGroup === filters.dcaGroup)
       )
     })
   }, [crashes, filters])
 
-  const activeFilterCount = useMemo(() => [
-    Boolean(filters.query.trim()),
-    filters.severities.length !== SEVERITIES.length,
-    filters.month !== "any",
-    filters.day !== "any",
-    filters.timeRange !== "any",
-    filters.crashType !== "any",
-    filters.roadUser !== "any",
-    filters.surface !== "any",
-  ].filter(Boolean).length, [filters])
+  const activeFilterCount = useMemo(
+    () =>
+      [
+        Boolean(filters.query.trim()),
+        filters.severities.length !== SEVERITIES.length,
+        filters.month !== "any",
+        filters.timeRange !== "any",
+        filters.crashType !== "any",
+        filters.roadUser !== "any",
+        filters.surface !== "any",
+        filters.roadFeature !== "any",
+        filters.dcaGroup !== "any",
+      ].filter(Boolean).length,
+    [filters]
+  )
 
-  const resetFilters = () => {
+  const clearFilters = () => {
     setFilters(DEFAULT_FILTERS)
-    setFitRequest((request) => request + 1)
   }
 
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div className="brand-mark"><CarFront size={19} strokeWidth={2.2} /></div>
+        <div className="brand-mark">
+          <Road size={19} strokeWidth={2.2} />
+        </div>
         <div className="brand-copy">
           <h1>Brisbane Crash Map</h1>
-          <p>Road traffic crashes · Jan–Jun 2025</p>
+          <p>Road traffic crashes · {selectedDataset.description}</p>
         </div>
-        <div className="header-count" aria-live="polite">
-          <strong>{filteredCrashes.length.toLocaleString()}</strong>
-          <span>{activeFilterCount ? `of ${crashes.length.toLocaleString()} crashes` : "crashes shown"}</span>
-        </div>
-        <Button variant="outline" size="sm" className="reset-button" onClick={resetFilters} disabled={!activeFilterCount}>
-          <RotateCcw size={14} /> Reset
-        </Button>
+        <Select
+          items={CRASH_DATASETS.map((dataset) => ({
+            value: dataset.id,
+            label: dataset.label,
+          }))}
+          value={datasetId}
+          onValueChange={(nextDatasetId) => {
+            if (!nextDatasetId) return
+            setCrashes([])
+            setError("")
+            setDatasetId(nextDatasetId)
+            setFilters(DEFAULT_FILTERS)
+          }}
+        >
+          <SelectTrigger
+            className="dataset-selector"
+            size="sm"
+            aria-label="Crash dataset"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {CRASH_DATASETS.map((dataset) => (
+              <SelectItem value={dataset.id} key={dataset.id}>
+                {dataset.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </header>
 
       <section className="workspace">
         <div className="map-panel">
           {error ? (
-            <div className="map-message"><strong>We couldn’t load the crash data.</strong><span>{error}</span></div>
+            <div className="map-message">
+              <strong>We couldn’t load the crash data.</strong>
+              <span>{error}</span>
+            </div>
           ) : crashes.length ? (
-            <CrashMap crashes={filteredCrashes} fitRequest={fitRequest} />
+            <CrashMap crashes={filteredCrashes} fitRequest={1} />
           ) : (
-            <div className="map-message"><LoaderCircle className="spin" /><span>Plotting crash locations…</span></div>
+            <div className="map-message">
+              <LoaderCircle className="spin" />
+              <span>Plotting crash locations…</span>
+            </div>
           )}
 
           {!error && crashes.length > 0 && filteredCrashes.length === 0 && (
-            <div className="empty-results"><strong>No crashes match</strong><span>Try widening or resetting the filters.</span><Button size="sm" onClick={resetFilters}>Reset filters</Button></div>
+            <div className="empty-results">
+              <strong>No crashes match</strong>
+              <span>Try widening or resetting the filters.</span>
+              <Button size="sm" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            </div>
           )}
 
           <div className="map-legend" aria-label="Crash severity legend">
-            {SEVERITIES.map((severity, index) => (
-              <span key={severity}><i style={{ backgroundColor: severityColors[index] }} />{severity}</span>
+            {SEVERITIES.map((severity) => (
+              <span key={severity}>
+                <i style={{ backgroundColor: SEVERITY_COLORS[severity] }} />
+                {severity}
+              </span>
             ))}
           </div>
 
-          <Button className="mobile-filter-trigger" type="button" onClick={() => setMobileFiltersOpen(true)}>
-            <SlidersHorizontal size={16} /> Filters {activeFilterCount > 0 && <b>{activeFilterCount}</b>}
+          <Button
+            className="mobile-filter-trigger"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded={mobileFiltersOpen}
+            onClick={() => setMobileFiltersOpen(true)}
+          >
+            <SlidersHorizontal size={16} /> Filters{" "}
+            {activeFilterCount > 0 && (
+              <Badge className="filter-count-badge" variant="secondary">
+                {activeFilterCount}
+              </Badge>
+            )}
           </Button>
         </div>
 
         <FilterPanel
           filters={filters}
           crashes={crashes}
+          resultCount={filteredCrashes.length}
           activeCount={activeFilterCount}
           mobileOpen={mobileFiltersOpen}
           onChange={setFilters}
-          onReset={resetFilters}
+          onClear={clearFilters}
           onClose={() => setMobileFiltersOpen(false)}
         />
       </section>

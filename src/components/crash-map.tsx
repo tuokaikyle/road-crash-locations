@@ -1,28 +1,53 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Focus, MapPin } from "lucide-react"
-import Map, { Layer, NavigationControl, Popup, Source, type LayerProps, type MapLayerMouseEvent, type MapRef } from "react-map-gl/maplibre"
+import { Focus, Layers2, MapPin } from "lucide-react"
+import Map, {
+  Layer,
+  NavigationControl,
+  Popup,
+  Source,
+  type LayerProps,
+  type MapLayerMouseEvent,
+  type MapRef,
+} from "react-map-gl/maplibre"
 import type { FeatureCollection, Point } from "geojson"
-import type { GeoJSONSource, StyleSpecification } from "maplibre-gl"
+import type { GeoJSONSource } from "maplibre-gl"
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
 
-import type { CrashRecord } from "@/lib/crashes"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { SEVERITY_COLORS, type CrashRecord } from "@/lib/crashes"
 
 import "maplibre-gl/dist/maplibre-gl.css"
 
-const mapStyle: StyleSpecification = {
-  version: 8,
-  sources: {
-    openStreetMap: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors",
-    },
-  },
-  layers: [{ id: "openStreetMap", type: "raster", source: "openStreetMap" }],
-}
+const BASEMAP_STYLES = {
+  light: "https://tiles.openfreemap.org/styles/positron",
+  streets:
+    import.meta.env.VITE_MAP_STYLE_URL ||
+    "https://tiles.openfreemap.org/styles/liberty",
+  dark: "https://tiles.openfreemap.org/styles/dark",
+} as const
+const BASEMAP_STORAGE_KEY = "brisbane-crash-map-basemap"
 
-const configuredMapStyle = import.meta.env.VITE_MAP_STYLE_URL || mapStyle
+type Basemap = keyof typeof BASEMAP_STYLES
+
+const BASEMAP_OPTIONS: { value: Basemap; label: string }[] = [
+  { value: "light", label: "Light" },
+  { value: "streets", label: "Streets" },
+  { value: "dark", label: "Dark" },
+]
+
+function getInitialBasemap(): Basemap {
+  const storedBasemap = localStorage.getItem(BASEMAP_STORAGE_KEY)
+  return storedBasemap && storedBasemap in BASEMAP_STYLES
+    ? (storedBasemap as Basemap)
+    : "light"
+}
 
 const clusterLayer: LayerProps = {
   id: "crash-clusters",
@@ -30,7 +55,7 @@ const clusterLayer: LayerProps = {
   source: "crashes",
   filter: ["has", "point_count"],
   paint: {
-    "circle-color": ["step", ["get", "point_count"], "#163b36", 30, "#0f6255", 100, "#0b7f69"],
+    "circle-color": "#262626",
     "circle-radius": ["step", ["get", "point_count"], 20, 30, 25, 100, 32],
     "circle-stroke-width": 3,
     "circle-stroke-color": "rgba(255,255,255,.88)",
@@ -52,7 +77,17 @@ const pointLayer: LayerProps = {
   source: "crashes",
   filter: ["!", ["has", "point_count"]],
   paint: {
-    "circle-color": ["match", ["get", "severity"], "Fatal", "#a22727", "Hospitalisation", "#df5a36", "Medical treatment", "#dfa62e", "#2478a6"],
+    "circle-color": [
+      "match",
+      ["get", "severity"],
+      "Fatal",
+      SEVERITY_COLORS.Fatal,
+      "Hospitalisation",
+      SEVERITY_COLORS.Hospitalisation,
+      "Medical treatment",
+      SEVERITY_COLORS["Medical treatment"],
+      SEVERITY_COLORS["Minor injury"],
+    ],
     "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 4.5, 15, 8],
     "circle-stroke-width": 1.5,
     "circle-stroke-color": "#ffffff",
@@ -66,71 +101,120 @@ type CrashMapProps = {
 
 export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
   const mapRef = useRef<MapRef>(null)
+  const handledFitRequest = useRef(0)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [cursor, setCursor] = useState("grab")
+  const [basemap, setBasemap] = useState<Basemap>(getInitialBasemap)
   const geoJson = useMemo<FeatureCollection<Point>>(
     () => ({
       type: "FeatureCollection",
       features: crashes.map((crash) => ({
         type: "Feature",
-        geometry: { type: "Point", coordinates: [crash.longitude, crash.latitude] },
+        geometry: {
+          type: "Point",
+          coordinates: [crash.longitude, crash.latitude],
+        },
         properties: { id: crash.id, severity: crash.severity },
       })),
     }),
-    [crashes],
+    [crashes]
   )
-  const selectedCrash = selectedId === null ? null : crashes.find((crash) => crash.id === selectedId) ?? null
+  const selectedCrash =
+    selectedId === null
+      ? null
+      : (crashes.find((crash) => crash.id === selectedId) ?? null)
 
   useEffect(() => {
-    if (!fitRequest || !crashes.length) return
-    const bounds = crashes.reduce(
-      (current, crash) => [
-        Math.min(current[0], crash.longitude),
-        Math.min(current[1], crash.latitude),
-        Math.max(current[2], crash.longitude),
-        Math.max(current[3], crash.latitude),
-      ] as [number, number, number, number],
-      [Infinity, Infinity, -Infinity, -Infinity] as [number, number, number, number],
+    if (
+      !fitRequest ||
+      !crashes.length ||
+      handledFitRequest.current === fitRequest
     )
-    mapRef.current?.fitBounds(bounds, { padding: 72, duration: 700, maxZoom: 14 })
+      return
+    handledFitRequest.current = fitRequest
+    const bounds = crashes.reduce(
+      (current, crash) =>
+        [
+          Math.min(current[0], crash.longitude),
+          Math.min(current[1], crash.latitude),
+          Math.max(current[2], crash.longitude),
+          Math.max(current[3], crash.latitude),
+        ] as [number, number, number, number],
+      [Infinity, Infinity, -Infinity, -Infinity] as [
+        number,
+        number,
+        number,
+        number,
+      ]
+    )
+    mapRef.current?.fitBounds(bounds, {
+      padding: 72,
+      duration: 700,
+      maxZoom: 14,
+    })
   }, [fitRequest, crashes])
 
   const handleClick = async (event: MapLayerMouseEvent) => {
     const feature = event.features?.[0]
-    if (!feature) return
+    if (!feature || feature.layer.id !== "crash-clusters") return
 
-    if (feature.layer.id === "crash-clusters") {
-      const clusterId = Number(feature.properties?.cluster_id)
-      const source = mapRef.current?.getSource("crashes") as GeoJSONSource | undefined
-      if (!source || !Number.isFinite(clusterId)) return
-      const zoom = await source.getClusterExpansionZoom(clusterId)
-      const [longitude, latitude] = (feature.geometry as Point).coordinates
-      mapRef.current?.easeTo({ center: [longitude, latitude], zoom, duration: 500 })
-      return
-    }
+    const clusterId = Number(feature.properties?.cluster_id)
+    const source = mapRef.current?.getSource("crashes") as
+      GeoJSONSource | undefined
+    if (!source || !Number.isFinite(clusterId)) return
+    const zoom = await source.getClusterExpansionZoom(clusterId)
+    const [longitude, latitude] = (feature.geometry as Point).coordinates
+    mapRef.current?.easeTo({
+      center: [longitude, latitude],
+      zoom,
+      duration: 500,
+    })
+  }
 
-    setSelectedId(Number(feature.properties?.id))
+  const handleMouseMove = (event: MapLayerMouseEvent) => {
+    const feature = event.features?.[0]
+    setCursor(feature ? "pointer" : "grab")
+    setSelectedId(
+      feature?.layer.id === "crash-points"
+        ? Number(feature.properties?.id)
+        : null
+    )
   }
 
   const streetLabel = selectedCrash
-    ? [selectedCrash.street, selectedCrash.intersectingStreet].filter(Boolean).join(" & ") || selectedCrash.stateRoadName || "Location recorded"
+    ? [selectedCrash.street, selectedCrash.intersectingStreet]
+        .filter(Boolean)
+        .join(" & ") ||
+      selectedCrash.stateRoadName ||
+      "Location recorded"
     : ""
 
   return (
-    <Map ref={mapRef}
+    <Map
+      ref={mapRef}
       workerUrl={maplibreWorkerUrl}
       initialViewState={{ longitude: 153.03, latitude: -27.47, zoom: 9.45 }}
-      mapStyle={configuredMapStyle}
+      mapStyle={BASEMAP_STYLES[basemap]}
       maxBounds={[151.9, -28.4, 154.2, -26.4]}
-      minZoom={7}
+      minZoom={10}
       interactiveLayerIds={["crash-clusters", "crash-points"]}
       onClick={handleClick}
-      onMouseEnter={() => setCursor("pointer")}
-      onMouseLeave={() => setCursor("grab")}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => {
+        setCursor("grab")
+        setSelectedId(null)
+      }}
       cursor={cursor}
     >
       <NavigationControl position="top-left" showCompass={false} />
-      <Source id="crashes" type="geojson" data={geoJson} cluster clusterMaxZoom={14} clusterRadius={44}>
+      <Source
+        id="crashes"
+        type="geojson"
+        data={geoJson}
+        cluster
+        clusterMaxZoom={10}
+        clusterRadius={36}
+      >
         <Layer {...clusterLayer} />
         <Layer {...clusterCountLayer} />
         <Layer {...pointLayer} />
@@ -142,28 +226,113 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
           anchor="bottom"
           offset={10}
           maxWidth="310px"
+          closeButton={false}
           closeOnClick={false}
           onClose={() => setSelectedId(null)}
         >
           <article className="crash-popup">
-            <div className="popup-kicker"><span className={`severity-dot severity-${selectedCrash.severity.toLowerCase().replaceAll(" ", "-")}`} />{selectedCrash.severity}</div>
-            <h3>{streetLabel}</h3>
-            <p className="popup-location"><MapPin size={13} />{selectedCrash.suburb}</p>
+            <h3 className="popup-kicker">
+              <span
+                className="severity-dot"
+                style={{
+                  backgroundColor: SEVERITY_COLORS[selectedCrash.severity],
+                }}
+              />
+              {selectedCrash.severity}
+            </h3>
+            <div className="popup-place">
+              <span className="popup-location">
+                <MapPin size={13} />
+                {streetLabel}, {selectedCrash.suburb}
+              </span>
+            </div>
             <dl>
-              <div><dt>When</dt><dd>{selectedCrash.dayOfWeek}, {selectedCrash.month} · {String(selectedCrash.hour).padStart(2, "0")}:00</dd></div>
-              <div><dt>Crash</dt><dd>{selectedCrash.nature} · {selectedCrash.crashType}</dd></div>
-              <div><dt>Conditions</dt><dd>{selectedCrash.atmosphericCondition} · {selectedCrash.surfaceCondition}</dd></div>
-              <div><dt>Casualties</dt><dd>{selectedCrash.casualtyTotal}</dd></div>
+              <div>
+                <dt>Time</dt>
+                <dd>{String(selectedCrash.hour).padStart(2, "0")}:00</dd>
+              </div>
+              <div>
+                <dt>Crash</dt>
+                <dd>
+                  {selectedCrash.nature} · {selectedCrash.crashType}
+                </dd>
+              </div>
+              <div>
+                <dt>Conditions</dt>
+                <dd>
+                  {selectedCrash.atmosphericCondition} ·{" "}
+                  {selectedCrash.surfaceCondition}
+                </dd>
+              </div>
+              <div>
+                <dt>Casualties</dt>
+                <dd>{selectedCrash.casualtyTotal}</dd>
+              </div>
             </dl>
             <small>Crash reference {selectedCrash.reference}</small>
           </article>
         </Popup>
       )}
-      <button className="fit-map-button" type="button" onClick={() => {
-        if (!crashes.length) return
-        const bounds = crashes.reduce((current, crash) => [Math.min(current[0], crash.longitude), Math.min(current[1], crash.latitude), Math.max(current[2], crash.longitude), Math.max(current[3], crash.latitude)] as [number, number, number, number], [Infinity, Infinity, -Infinity, -Infinity] as [number, number, number, number])
-        mapRef.current?.fitBounds(bounds, { padding: 72, duration: 700, maxZoom: 14 })
-      }}><Focus size={15} />Fit results</button>
+      <div className="map-actions">
+        <Select
+          items={BASEMAP_OPTIONS}
+          value={basemap}
+          onValueChange={(nextBasemap) => {
+            if (!nextBasemap) return
+            setBasemap(nextBasemap)
+            localStorage.setItem(BASEMAP_STORAGE_KEY, nextBasemap)
+            setSelectedId(null)
+          }}
+        >
+          <SelectTrigger
+            className="basemap-trigger"
+            size="sm"
+            aria-label="Basemap style"
+          >
+            <Layers2 />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end">
+            {BASEMAP_OPTIONS.map((option) => (
+              <SelectItem value={option.value} key={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          className="fit-map-button"
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (!crashes.length) return
+            const bounds = crashes.reduce(
+              (current, crash) =>
+                [
+                  Math.min(current[0], crash.longitude),
+                  Math.min(current[1], crash.latitude),
+                  Math.max(current[2], crash.longitude),
+                  Math.max(current[3], crash.latitude),
+                ] as [number, number, number, number],
+              [Infinity, Infinity, -Infinity, -Infinity] as [
+                number,
+                number,
+                number,
+                number,
+              ]
+            )
+            mapRef.current?.fitBounds(bounds, {
+              padding: 72,
+              duration: 700,
+              maxZoom: 14,
+            })
+          }}
+        >
+          <Focus size={15} />
+          Fit results
+        </Button>
+      </div>
     </Map>
   )
 }
