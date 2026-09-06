@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { LoaderCircle, Road, SlidersHorizontal } from "lucide-react"
+import { Filter, LoaderCircle, Road } from "lucide-react"
 
 import { CrashMap } from "@/components/crash-map"
 import { FilterPanel, type CrashFilters } from "@/components/filter-panel"
@@ -222,7 +222,7 @@ export function App() {
           aria-expanded={mobileFiltersOpen}
           onClick={() => setMobileFiltersOpen(true)}
         >
-          <SlidersHorizontal size={14} />
+          <Filter size={14} />
           {activeFilterCount > 0 && (
             <Badge className="filter-count-badge" variant="secondary">
               {activeFilterCount}
