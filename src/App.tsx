@@ -106,7 +106,8 @@ export function App() {
           filters.roadUsers.some((roadUser) => hasRoadUser(crash, roadUser))) &&
         (!filters.roadFeatures.length ||
           filters.roadFeatures.includes(crash.roadwayFeature)) &&
-        (!filters.dcaGroups.length || filters.dcaGroups.includes(crash.dcaGroup))
+        (!filters.dcaGroups.length ||
+          filters.dcaGroups.includes(crash.dcaGroup))
       )
     })
   }, [crashes, filters])
@@ -144,7 +145,10 @@ export function App() {
     )
       return
 
-    const timeout = window.setTimeout(() => setEmptyResultsDismissed(true), 5000)
+    const timeout = window.setTimeout(
+      () => setEmptyResultsDismissed(true),
+      5000
+    )
     return () => window.clearTimeout(timeout)
   }, [crashes.length, emptyResultsDismissed, filteredCrashes.length])
 
@@ -208,6 +212,23 @@ export function App() {
             ))}
           </SelectContent>
         </Select>
+
+        <Button
+          className="mobile-filter-trigger"
+          type="button"
+          size="icon-sm"
+          variant="outline"
+          aria-haspopup="dialog"
+          aria-expanded={mobileFiltersOpen}
+          onClick={() => setMobileFiltersOpen(true)}
+        >
+          <SlidersHorizontal size={14} />
+          {activeFilterCount > 0 && (
+            <Badge className="filter-count-badge" variant="secondary">
+              {activeFilterCount}
+            </Badge>
+          )}
+        </Button>
       </header>
 
       <section className="workspace">
@@ -251,21 +272,6 @@ export function App() {
               </span>
             ))}
           </div>
-
-          <Button
-            className="mobile-filter-trigger"
-            type="button"
-            aria-haspopup="dialog"
-            aria-expanded={mobileFiltersOpen}
-            onClick={() => setMobileFiltersOpen(true)}
-          >
-            <SlidersHorizontal size={16} /> Filters{" "}
-            {activeFilterCount > 0 && (
-              <Badge className="filter-count-badge" variant="secondary">
-                {activeFilterCount}
-              </Badge>
-            )}
-          </Button>
         </div>
 
         <FilterPanel
