@@ -1,69 +1,111 @@
 # Brisbane Crash Map
 
-A lightweight interactive map of **road traffic crashes in Brisbane** (Queensland,
-Australia), built from open-data spreadsheets published by the Queensland
-government's crash reporting.
+An interactive map for exploring Queensland road-traffic crash records in the
+Brisbane area. Choose a dataset, narrow it with filters, and inspect individual
+crashes directly on the map.
 
-Data is heavy, but the app stays light: crash rows are parsed client-side into a
-GeoJSON layer and rendered with **MapLibre GL clustering** on the GPU, so React
-never re-renders individual points — even with thousands of crashes on screen.
+The application is a client-side Vite app: the bundled TSV datasets are parsed
+in the browser and rendered as a clustered MapLibre GeoJSON layer. No backend
+is required.
 
-## Features
+## Highlights
 
-- **Clustered crash map** — circles that merge into count clusters and expand as you zoom.
-- **Severity styling & legend** — Fatal / Hospitalisation / Medical treatment / Minor injury.
-- **Crash detail popups** — tap a point for time, crash nature/type, road conditions, casualties, and the report reference.
-- **Rich filtering sidebar** (mobile: bottom sheet):
-  - Street / suburb search
-  - Severity (multi-select)
-  - Month · time of day
-  - Crash type · road user · road surface
-  - **Road feature** (intersections, merge lanes, roundabouts, …)
-  - **DCA group** (Definition for Classifying Accidents scenario codes, e.g. Rear-end, Hit Pedestrian)
-- **Multiple datasets** — switch between the full 2024 and the Jan–Jun 2025 snapshots.
-- **Basemap switcher** — Light / Streets / Dark (persisted in `localStorage`).
-- **Responsive** desktop layout + mobile filter sheet.
+- Clustered map markers that expand as you zoom in.
+- Severity legend for Fatal, Hospitalisation, Medical treatment, and Minor injury crashes.
+- Crash popups with the day and time, crash type, involved road users, road
+  surface, road feature, DCA group, location, and crash reference.
+- Desktop filtering sidebar and a mobile bottom-sheet equivalent.
+- Search by street or suburb, plus filters for severity, month, time of day,
+  crash type, road user, road surface, road feature, and DCA group.
+- 2024 full-year and 2025 Jan–Jun dataset snapshots.
+- Light, streets, and dark basemaps; the selected style is remembered locally.
+- Full-screen map mode and touch-friendly crash selection on mobile.
 
-## Tech
+## Stack
 
-- [React 19](https://react.dev) + [TypeScript](https://www.typescriptlang.org)
-- [Vite](https://vite.dev)
-- [Tailwind CSS v4](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com) (`base-nova` style on `@base-ui/react`)
-- [MapLibre GL](https://maplibre.org) via [`react-map-gl`](https://visgl.github.io/react-map-gl)
-- [lucide-react](https://lucide.dev) icons
+- [React](https://react.dev) and [TypeScript](https://www.typescriptlang.org)
+- [Vite](https://vite.dev) and [Bun](https://bun.sh)
+- [Tailwind CSS](https://tailwindcss.com), [shadcn/ui](https://ui.shadcn.com), and [Base UI](https://base-ui.com)
+- [MapLibre GL](https://maplibre.org) with [`react-map-gl`](https://visgl.github.io/react-map-gl)
+- [Lucide](https://lucide.dev) icons
 
-## Getting started
+## Run locally
 
-```bash
-bun install      # or npm install
-bun dev          # start the dev server
-bun run build    # type-check + production build
-bun run lint     # run eslint
-bun run typecheck
-```
-
-Crash data lives in `public/` as tab-separated files matching the columns the
-parser in `src/lib/crashes.ts` expects. The parser is dependency-free and reads
-only the fields the UI needs.
-
-## Where things live
-
-- `src/App.tsx` — layout, data loading, filter state & logic
-- `src/components/crash-map.tsx` — the MapLibre map, clustering, popups
-- `src/components/filter-panel.tsx` — desktop sidebar + mobile filter sheet
-- `src/lib/crashes.ts` — TSV parsing, crash types & dataset registry
-
-## Adding components (shadcn)
+Prerequisite: [Bun](https://bun.sh) 1.3 or later.
 
 ```bash
-npx shadcn@latest add button
+bun install
+bun run dev
 ```
 
-This places the ui components in `src/components/ui`.
+Vite prints the local URL when the development server is ready.
 
-## Using components
+### Useful commands
 
-```tsx
-import { Button } from "@/components/ui/button"
+| Command             | Purpose                                              |
+| ------------------- | ---------------------------------------------------- |
+| `bun run dev`       | Start the development server.                        |
+| `bun run build`     | Type-check and create a production build in `dist/`. |
+| `bun run preview`   | Serve the production build locally.                  |
+| `bun run lint`      | Run ESLint.                                          |
+| `bun run typecheck` | Run TypeScript without emitting files.               |
+| `bun run format`    | Format TypeScript and TSX files with Prettier.       |
+
+## Deploy to Cloudflare Pages
+
+Use the following build settings:
+
+| Setting                | Value           |
+| ---------------------- | --------------- |
+| Build command          | `bun run build` |
+| Build output directory | `dist`          |
+
+Cloudflare Pages can install dependencies from the committed `bun.lock` file.
+
+## Data
+
+The data is sourced from [Road crash locations](https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0), with a Creative Commons Attribution 4.0 license.
+
+The shipped data snapshots live in `public/`:
+
+- `_QLD_Road_Traffic_Crashes_csv__2024.tsv`
+- `_QLD_Road_Traffic_Crashes_csv__2025_june30.tsv`
+
+`src/lib/crashes.ts` contains the dataset registry and TSV parser. Rows without
+valid coordinates or a recognised severity are ignored. The parser only maps
+fields used by the interface.
+
+To add a snapshot:
+
+1. Put the TSV file in `public/`.
+2. Add its id, label, description, and URL to `CRASH_DATASETS` in
+   `src/lib/crashes.ts`.
+3. Keep the expected source columns intact, then run `bun run build`.
+
+The data is a historical snapshot, not a live incident feed. Validate it
+against the originating Queensland open-data release before using it for
+operational or safety-critical decisions.
+
+## Project structure
+
+```text
+src/
+├── App.tsx                     # Layout, data loading, filter and full-screen state
+├── components/
+│   ├── crash-map.tsx           # MapLibre map, clustering, controls, and crash popup
+│   ├── filter-panel.tsx        # Desktop sidebar and mobile filter sheet
+│   └── ui/                     # Shared Base UI / shadcn components
+├── lib/
+│   └── crashes.ts              # Dataset registry, types, and TSV parsing
+└── index.css                   # App layout and responsive styling
 ```
 
+## Configuration
+
+Set `VITE_MAP_STYLE_URL` to override the URL used by the **Streets** basemap:
+
+```bash
+VITE_MAP_STYLE_URL="https://example.com/style.json" bun run dev
+```
+
+The light and dark map styles use OpenFreeMap by default.
