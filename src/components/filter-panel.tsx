@@ -1,7 +1,9 @@
+import { useState } from "react"
 import { RotateCcw, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -32,10 +34,10 @@ export type CrashFilters = {
   severities: CrashSeverity[]
   dayOfWeek: string
   timeRange: TimeRange
-  crashType: string
-  roadUser: RoadUser
-  roadFeature: string
-  dcaGroup: string
+  crashTypes: string[]
+  roadUsers: RoadUser[]
+  roadFeatures: string[]
+  dcaGroups: string[]
 }
 
 type FilterPanelProps = {
@@ -217,19 +219,17 @@ export function FilterPanel({
 
       <fieldset className="filter-group compact-group">
         <legend>Crash details</legend>
-        <SelectRow
+        <CheckboxFilter
           label="Crash type"
-          value={filters.crashType}
-          onChange={(value) => update("crashType", value)}
           options={crashTypes}
-          allLabel="All types"
+          value={filters.crashTypes}
+          onChange={(value) => update("crashTypes", value)}
         />
-        <SelectRow
+        <CheckboxFilter
           label="Road user"
-          value={filters.roadUser}
-          onChange={(value) => update("roadUser", value as RoadUser)}
           options={["pedestrian", "bicycle", "motorcycle", "truck"]}
-          allLabel="Any road user"
+          value={filters.roadUsers}
+          onChange={(value) => update("roadUsers", value as RoadUser[])}
           optionLabels={{
             pedestrian: "Pedestrian",
             bicycle: "Bicycle",
@@ -237,22 +237,18 @@ export function FilterPanel({
             truck: "Truck",
           }}
         />
-        <SelectRow
+        <CheckboxFilter
           label="Road feature"
-          value={filters.roadFeature}
-          onChange={(value) => update("roadFeature", value)}
           options={roadFeatures}
-          allLabel="Any road feature"
-          wideMenu
+          value={filters.roadFeatures}
+          onChange={(value) => update("roadFeatures", value)}
         />
-        <SelectRow
+        <CheckboxFilter
           label="DCA group"
-          value={filters.dcaGroup}
-          onChange={(value) => update("dcaGroup", value)}
           options={dcaGroups}
+          value={filters.dcaGroups}
+          onChange={(value) => update("dcaGroups", value)}
           optionLabels={dcaGroupLabels}
-          allLabel="Any DCA group"
-          wideMenu
         />
       </fieldset>
 
@@ -350,6 +346,83 @@ type SelectRowProps = {
   optionLabels?: Record<string, string>
   onChange: (value: string) => void
   wideMenu?: boolean
+}
+
+type CheckboxFilterProps = {
+  label: string
+  options: string[]
+  value: string[]
+  optionLabels?: Record<string, string>
+  onChange: (value: string[]) => void
+}
+
+function CheckboxFilter({
+  label,
+  options,
+  value,
+  optionLabels,
+  onChange,
+}: CheckboxFilterProps) {
+  const [expanded, setExpanded] = useState(false)
+  const canExpand = options.length > 8
+  const visibleOptions = expanded ? options : options.slice(0, 8)
+  const idPrefix = label.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")
+
+  const setOptionChecked = (option: string, checked: boolean) => {
+    onChange(
+      checked
+        ? [...value, option]
+        : value.filter((selected) => selected !== option)
+    )
+  }
+
+  return (
+    <div className="checkbox-filter">
+      <div className="checkbox-filter-heading">
+        <span>{label}</span>
+        {value.length > 0 && (
+          <Button
+            className="checkbox-filter-clear"
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => onChange([])}
+          >
+            Clear
+          </Button>
+        )}
+      </div>
+      <FieldGroup className="checkbox-filter-options">
+        {visibleOptions.map((option, index) => {
+          const id = `${idPrefix}-${index}`
+          return (
+            <Field className="checkbox-filter-option" orientation="horizontal" key={option}>
+              <Checkbox
+                id={id}
+                checked={value.includes(option)}
+                onCheckedChange={(checked) => setOptionChecked(option, checked)}
+              />
+              <FieldLabel className="checkbox-filter-label font-normal" htmlFor={id}>
+                {optionLabels?.[option] ?? option}
+              </FieldLabel>
+            </Field>
+          )
+        })}
+      </FieldGroup>
+      {canExpand && (
+        <Button
+          className="checkbox-filter-expand"
+          type="button"
+          variant="ghost"
+          size="xs"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          {expanded ? "Show less" : `Show all ${options.length}`}
+        </Button>
+      )}
+    </div>
+  )
 }
 
 function SelectRow({

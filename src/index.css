@@ -180,6 +180,13 @@ button, input, select { font: inherit; }
 .filter-select-trigger { width: 170px; min-width: 0; justify-content: flex-end; font-size: 11px; }
 .filter-select-trigger [data-slot="select-value"] { justify-content: flex-end; text-align: right; }
 .wide-filter-select-content { width: max-content; min-width: var(--anchor-width); max-width: min(30rem, calc(100vw - 32px)); }
+.checkbox-filter + .checkbox-filter { margin-top: 10px; }
+.checkbox-filter-heading { display: flex; align-items: center; justify-content: space-between; min-height: 20px; color: var(--muted-foreground); font-size: 11px; }
+.checkbox-filter-clear, .checkbox-filter-expand { color: var(--muted-foreground); }
+.checkbox-filter-options { gap: 6px; margin-top: 3px; }
+.checkbox-filter-option { gap: 8px; }
+.checkbox-filter-label { font-size: 12px; }
+.checkbox-filter-expand { margin-top: 5px; }
 .desktop-filter-footer { padding-top: 16px; }
 .desktop-filter-footer button { width: 100%; }
 .filter-attribution { margin: 12px 0 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.5; text-align: center; }
@@ -215,6 +222,7 @@ button, input, select { font: inherit; }
 @media (min-width: 721px) {
   .map-legend { gap: 8px 14px; padding: 11px 13px; font-size: 11px; }
   .map-legend i { width: 9px; height: 9px; }
+  .checkbox-filter-expand { height: 22px; padding: 0 6px; font-size: 11px; }
 }
 
 @media (max-width: 720px) {
