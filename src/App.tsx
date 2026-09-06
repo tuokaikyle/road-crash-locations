@@ -25,7 +25,7 @@ import {
 const DEFAULT_FILTERS: CrashFilters = {
   query: "",
   severities: [...SEVERITIES],
-  month: "any",
+  dayOfWeek: "any",
   timeRange: "any",
   crashType: "any",
   roadUser: "any",
@@ -94,7 +94,8 @@ export function App() {
       return (
         (!query || searchable.includes(query)) &&
         filters.severities.includes(crash.severity) &&
-        (filters.month === "any" || crash.month === filters.month) &&
+        (filters.dayOfWeek === "any" ||
+          crash.dayOfWeek === filters.dayOfWeek) &&
         matchesTimeRange(crash.hour, filters.timeRange) &&
         (filters.crashType === "any" ||
           crash.crashType === filters.crashType) &&
@@ -111,7 +112,7 @@ export function App() {
       [
         Boolean(filters.query.trim()),
         filters.severities.length !== SEVERITIES.length,
-        filters.month !== "any",
+        filters.dayOfWeek !== "any",
         filters.timeRange !== "any",
         filters.crashType !== "any",
         filters.roadUser !== "any",

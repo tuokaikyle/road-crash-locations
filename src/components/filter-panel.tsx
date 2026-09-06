@@ -30,7 +30,7 @@ export type RoadUser = "any" | "pedestrian" | "bicycle" | "motorcycle" | "truck"
 export type CrashFilters = {
   query: string
   severities: CrashSeverity[]
-  month: string
+  dayOfWeek: string
   timeRange: TimeRange
   crashType: string
   roadUser: RoadUser
@@ -49,19 +49,14 @@ type FilterPanelProps = {
   onClose: () => void
 }
 
-const MONTH_ORDER = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+const DAY_OF_WEEK_ORDER = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
 ]
 function sortedOptions(values: string[], preferredOrder?: string[]) {
   const unique = [...new Set(values.filter(Boolean))]
@@ -82,9 +77,9 @@ export function FilterPanel({
   onClear,
   onClose,
 }: FilterPanelProps) {
-  const months = sortedOptions(
-    crashes.map((crash) => crash.month),
-    MONTH_ORDER
+  const daysOfWeek = sortedOptions(
+    crashes.map((crash) => crash.dayOfWeek),
+    DAY_OF_WEEK_ORDER
   )
   const crashTypes = sortedOptions(crashes.map((crash) => crash.crashType))
   const roadFeatures = sortedOptions(
@@ -199,11 +194,11 @@ export function FilterPanel({
       <fieldset className="filter-group compact-group">
         <legend>When</legend>
         <SelectRow
-          label="Month"
-          value={filters.month}
-          onChange={(value) => update("month", value)}
-          options={months}
-          allLabel="All months"
+          label="Day of week"
+          value={filters.dayOfWeek}
+          onChange={(value) => update("dayOfWeek", value)}
+          options={daysOfWeek}
+          allLabel="Any day"
         />
         <SelectRow
           label="Time of day"
