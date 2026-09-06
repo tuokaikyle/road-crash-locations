@@ -43,13 +43,15 @@ const BASEMAP_OPTIONS: { value: Basemap; label: string }[] = [
 ]
 
 function roadUserLabel(crash: CrashRecord) {
+  const roadUsers: [string, number][] = [
+    ["Pedestrian", crash.pedestrians],
+    ["Bicycle", crash.bicycles],
+    ["Motorcycle", crash.motorcycles],
+    ["Truck", crash.trucks],
+  ]
+
   return (
-    [
-      ["Pedestrian", crash.pedestrians],
-      ["Bicycle", crash.bicycles],
-      ["Motorcycle", crash.motorcycles],
-      ["Truck", crash.trucks],
-    ]
+    roadUsers
       .filter(([, count]) => count > 0)
       .map(([label]) => label)
       .join(", ") || "None recorded"
