@@ -70,30 +70,8 @@ function getInitialBasemap(): Basemap {
     : "openstreetmap"
 }
 
-function createPopupContent(crash: CrashRecord) {
-  const streetLabel =
-    [crash.street, crash.intersectingStreet].filter(Boolean).join(" & ") ||
-    crash.stateRoadName ||
-    "Location recorded"
-  const content = document.createElement("article")
-  content.className = "crash-popup"
-
-  const title = document.createElement("h3")
-  title.className = "popup-kicker"
-  const dot = document.createElement("span")
-  dot.className = "severity-dot"
-  dot.style.backgroundColor = SEVERITY_COLORS[crash.severity]
-  title.append(dot, document.createTextNode(crash.severity))
-
-  const place = document.createElement("div")
-  place.className = "popup-place"
-  const location = document.createElement("span")
-  location.className = "popup-location"
-  location.textContent = `${streetLabel}, ${crash.suburb}`
-  place.append(location)
-
-  const details = document.createElement("dl")
-  const rows: [string, string][] = [
+function popupRows(crash: CrashRecord): [string, string][] {
+  return [
     ["Time", `${String(crash.hour).padStart(2, "0")}:00 · ${crash.dayOfWeek}`],
     ["Crash type", crash.crashType || "Not recorded"],
     ["Road user", roadUserLabel(crash)],
@@ -101,20 +79,58 @@ function createPopupContent(crash: CrashRecord) {
     ["Road feature", crash.roadwayFeature || "Not recorded"],
     ["DCA group", crash.dcaGroup.replace(/^\d+: /, "") || "Not recorded"],
   ]
-  for (const [label, value] of rows) {
+}
+
+function createTooltipContent(crash: CrashRecord) {
+  const tag = document.createElement("div")
+  tag.className = "crash-tooltip"
+
+  // Header: severity label.
+  const header = document.createElement("div")
+  header.className = "crash-tooltip-header"
+
+  const title = document.createElement("strong")
+  title.className = "crash-tooltip-title"
+  const dot = document.createElement("span")
+  dot.className = "severity-dot"
+  dot.style.backgroundColor = SEVERITY_COLORS[crash.severity]
+  const heading = document.createElement("span")
+  heading.textContent = crash.severity
+  title.append(dot, heading)
+  header.append(title)
+  tag.append(header)
+
+  // Location line.
+  const streetLabel =
+    [crash.street, crash.intersectingStreet].filter(Boolean).join(" & ") ||
+    crash.stateRoadName ||
+    "Location recorded"
+  const place = document.createElement("span")
+  place.className = "crash-tooltip-place"
+  place.textContent = `${streetLabel}, ${crash.suburb}`
+  tag.append(place)
+
+  // Attribute rows in the exact order shown in main's popup: Time first, then
+  // crash type, road user, road surface, road feature, and DCA group.
+  const list = document.createElement("dl")
+  list.className = "crash-tooltip-rows"
+  for (const [label, value] of popupRows(crash)) {
     const row = document.createElement("div")
     const term = document.createElement("dt")
     term.textContent = label
     const definition = document.createElement("dd")
     definition.textContent = value
     row.append(term, definition)
-    details.append(row)
+    list.append(row)
   }
+  tag.append(list)
 
-  const reference = document.createElement("small")
+  // Reference footer, mirroring main's small print at the bottom.
+  const reference = document.createElement("span")
+  reference.className = "crash-tooltip-reference"
   reference.textContent = `Crash reference ${crash.reference}`
-  content.append(title, place, details, reference)
-  return content
+  tag.append(reference)
+  return tag
 }
 
 function clusterRadius(pointCount: number) {
@@ -233,12 +249,13 @@ export function CrashMap({
         fillOpacity: 1,
         bubblingMouseEvents: false,
       })
-      marker.bindTooltip(crash.severity, { direction: "top", opacity: 0.9 })
+      marker.bindTooltip(createTooltipContent(crash), {
+        direction: "top",
+        opacity: 1,
+        className: "crash-tooltip-container",
+      })
       marker.on("click", () => {
-        L.popup({ maxWidth: 310, offset: [0, -8] })
-          .setLatLng(position)
-          .setContent(createPopupContent(crash))
-          .openOn(map)
+        marker.openTooltip()
       })
       markerLayer.addLayer(marker)
     }
