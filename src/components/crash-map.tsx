@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Expand, Layers2, MapPin, Minimize2 } from "lucide-react"
+import { Expand, Filter, Layers2, MapPin, Minimize2 } from "lucide-react"
 import Map, {
   AttributionControl,
   Layer,
@@ -16,6 +16,7 @@ import type { GeoJSONSource } from "maplibre-gl"
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
@@ -116,6 +117,9 @@ type CrashMapProps = {
   fitRequest: number
   isFullscreen: boolean
   onToggleFullscreen: () => void
+  activeFilterCount: number
+  mobileFiltersOpen: boolean
+  onOpenFilters: () => void
 }
 
 export function CrashMap({
@@ -123,6 +127,9 @@ export function CrashMap({
   fitRequest,
   isFullscreen,
   onToggleFullscreen,
+  activeFilterCount,
+  mobileFiltersOpen,
+  onOpenFilters,
 }: CrashMapProps) {
   const isMobileViewport = window.matchMedia("(max-width: 720px)").matches
   const mapRef = useRef<MapRef>(null)
@@ -329,11 +336,31 @@ export function CrashMap({
       )}
       <div className="map-actions">
         <Button
+          className="mobile-filter-trigger"
+          type="button"
+          size="icon-sm"
+          variant="outline"
+          aria-haspopup="dialog"
+          aria-expanded={mobileFiltersOpen}
+          aria-label="Open filters"
+          title="Open filters"
+          onClick={onOpenFilters}
+        >
+          <Filter size={14} />
+          {activeFilterCount > 0 && (
+            <Badge className="filter-count-badge" variant="secondary">
+              {activeFilterCount}
+            </Badge>
+          )}
+        </Button>
+        <Button
           className="fullscreen-map-button"
           type="button"
           variant="outline"
           size="icon-sm"
-          aria-label={isFullscreen ? "Exit full screen" : "View map in full screen"}
+          aria-label={
+            isFullscreen ? "Exit full screen" : "View map in full screen"
+          }
           title={isFullscreen ? "Exit full screen" : "View map in full screen"}
           onClick={onToggleFullscreen}
         >

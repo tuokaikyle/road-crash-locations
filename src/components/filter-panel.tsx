@@ -264,15 +264,23 @@ export function FilterPanel({
             Reset
           </Button>
           <p className="filter-attribution">
-            Data source:{" "}
+            Contains Queensland Government{" "}
             <a
               href="https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0"
               target="_blank"
               rel="noopener noreferrer"
             >
               Road crash locations
-            </a>{" "}
-            (CC BY 4.0)
+            </a>
+            {", "}filtered for this map, under{" "}
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              CC BY 4.0
+            </a>
+            . No endorsement implied.
           </p>
         </div>
       )}
@@ -294,15 +302,23 @@ export function FilterPanel({
             </SheetClose>
           </div>
           <p className="filter-attribution">
-            Data source:{" "}
+            Contains Queensland Government{" "}
             <a
               href="https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0"
               target="_blank"
               rel="noopener noreferrer"
             >
               Road crash locations
-            </a>{" "}
-            (CC BY 4.0)
+            </a>
+            {", "}filtered for this map, under{" "}
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              CC BY 4.0
+            </a>
+            . No endorsement implied.
           </p>
         </div>
       )}
@@ -396,13 +412,20 @@ function CheckboxFilter({
         {visibleOptions.map((option, index) => {
           const id = `${idPrefix}-${index}`
           return (
-            <Field className="checkbox-filter-option" orientation="horizontal" key={option}>
+            <Field
+              className="checkbox-filter-option"
+              orientation="horizontal"
+              key={option}
+            >
               <Checkbox
                 id={id}
                 checked={value.includes(option)}
                 onCheckedChange={(checked) => setOptionChecked(option, checked)}
               />
-              <FieldLabel className="checkbox-filter-label font-normal" htmlFor={id}>
+              <FieldLabel
+                className="checkbox-filter-label font-normal"
+                htmlFor={id}
+              >
                 {optionLabels?.[option] ?? option}
               </FieldLabel>
             </Field>

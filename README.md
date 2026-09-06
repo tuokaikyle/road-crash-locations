@@ -64,7 +64,12 @@ Cloudflare Pages can install dependencies from the committed `bun.lock` file.
 
 ## Data
 
-The data is sourced from [Road crash locations](https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0), with a Creative Commons Attribution 4.0 license.
+This application contains Queensland Government [Road crash
+locations](https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0)
+data, licensed under [Creative Commons Attribution 4.0
+International](https://creativecommons.org/licenses/by/4.0/). The data has been
+filtered and presented for this map; the Queensland Government does not endorse
+this application.
 
 The shipped data snapshots live in `public/`:
 
