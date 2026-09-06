@@ -66,6 +66,17 @@ function getInitialBasemap(): Basemap {
     : "light"
 }
 
+// Chrome on iOS uses the same WebKit renderer as Safari. Keeping the map's
+// canvas and tile cache small avoids WebKit terminating the GPU process on
+// memory-constrained phones after the vector style has finished loading.
+function isIOSWebKit() {
+  const { userAgent, platform, maxTouchPoints } = navigator
+  return (
+    /iPad|iPhone|iPod/.test(userAgent) ||
+    (platform === "MacIntel" && maxTouchPoints > 1)
+  )
+}
+
 const clusterLayer: LayerProps = {
   id: "crash-clusters",
   type: "circle",
@@ -125,6 +136,7 @@ export function CrashMap({
   onToggleFullscreen,
 }: CrashMapProps) {
   const isMobileViewport = window.matchMedia("(max-width: 720px)").matches
+  const useIOSMemoryLimits = isMobileViewport && isIOSWebKit()
   const mapRef = useRef<MapRef>(null)
   const handledFitRequest = useRef(0)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -236,6 +248,13 @@ export function CrashMap({
       attributionControl={false}
       maxBounds={[151.9, -28.4, 154.2, -26.4]}
       minZoom={isMobileViewport ? 8 : 10}
+      renderWorldCopies={false}
+      {...(useIOSMemoryLimits && {
+        pixelRatio: 1,
+        maxCanvasSize: [1024, 1536] as [number, number],
+        maxTileCacheSize: 32,
+        fadeDuration: 0,
+      })}
       interactiveLayerIds={["crash-clusters", "crash-points"]}
       onClick={handleClick}
       onTouchEnd={handleTouchEnd}
