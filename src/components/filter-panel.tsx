@@ -34,7 +34,6 @@ export type CrashFilters = {
   timeRange: TimeRange
   crashType: string
   roadUser: RoadUser
-  surface: string
   roadFeature: string
   dcaGroup: string
 }
@@ -88,7 +87,6 @@ export function FilterPanel({
     MONTH_ORDER
   )
   const crashTypes = sortedOptions(crashes.map((crash) => crash.crashType))
-  const surfaces = sortedOptions(crashes.map((crash) => crash.surfaceCondition))
   const roadFeatures = sortedOptions(
     crashes.map((crash) => crash.roadwayFeature)
   )
@@ -123,13 +121,16 @@ export function FilterPanel({
   const renderFilterContent = (mobile: boolean) => (
     <>
       <div className="filter-heading">
-        <div>
+        <div className="filter-heading-titles">
           {mobile ? (
             <SheetTitle className="filter-title">Filter</SheetTitle>
           ) : (
             <h2>Filter</h2>
           )}
-          <p className="filter-result-count" aria-live="polite">
+          <span className="heading-separator" aria-hidden="true">
+            ·
+          </span>
+          <p className="filter-heading-count" aria-live="polite">
             <strong>{resultCount.toLocaleString()}</strong> results
           </p>
         </div>
@@ -242,13 +243,6 @@ export function FilterPanel({
           }}
         />
         <SelectRow
-          label="Road surface"
-          value={filters.surface}
-          onChange={(value) => update("surface", value)}
-          options={surfaces}
-          allLabel="Any surface"
-        />
-        <SelectRow
           label="Road feature"
           value={filters.roadFeature}
           onChange={(value) => update("roadFeature", value)}
@@ -278,23 +272,47 @@ export function FilterPanel({
             <RotateCcw />
             Reset
           </Button>
+          <p className="filter-attribution">
+            Data source:{" "}
+            <a
+              href="https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Road crash locations
+            </a>{" "}
+            (CC BY 4.0)
+          </p>
         </div>
       )}
 
       {mobile && (
         <div className="mobile-filter-footer">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClear}
-            disabled={!activeCount}
-          >
-            <RotateCcw />
-            Reset
-          </Button>
-          <SheetClose render={<Button type="button" />}>
-            Show results
-          </SheetClose>
+          <div className="mobile-filter-actions">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClear}
+              disabled={!activeCount}
+            >
+              <RotateCcw />
+              Reset
+            </Button>
+            <SheetClose render={<Button type="button" />}>
+              Show results
+            </SheetClose>
+          </div>
+          <p className="filter-attribution">
+            Data source:{" "}
+            <a
+              href="https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Road crash locations
+            </a>{" "}
+            (CC BY 4.0)
+          </p>
         </div>
       )}
     </>

@@ -29,7 +29,6 @@ const DEFAULT_FILTERS: CrashFilters = {
   timeRange: "any",
   crashType: "any",
   roadUser: "any",
-  surface: "any",
   roadFeature: "any",
   dcaGroup: "any",
 }
@@ -100,8 +99,6 @@ export function App() {
         (filters.crashType === "any" ||
           crash.crashType === filters.crashType) &&
         hasRoadUser(crash, filters.roadUser) &&
-        (filters.surface === "any" ||
-          crash.surfaceCondition === filters.surface) &&
         (filters.roadFeature === "any" ||
           crash.roadwayFeature === filters.roadFeature) &&
         (filters.dcaGroup === "any" || crash.dcaGroup === filters.dcaGroup)
@@ -118,7 +115,6 @@ export function App() {
         filters.timeRange !== "any",
         filters.crashType !== "any",
         filters.roadUser !== "any",
-        filters.surface !== "any",
         filters.roadFeature !== "any",
         filters.dcaGroup !== "any",
       ].filter(Boolean).length,
