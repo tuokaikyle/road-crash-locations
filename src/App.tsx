@@ -27,10 +27,10 @@ const DEFAULT_FILTERS: CrashFilters = {
   severities: [...SEVERITIES],
   dayOfWeek: "any",
   timeRange: "any",
-  crashType: "any",
-  roadUser: "any",
-  roadFeature: "any",
-  dcaGroup: "any",
+  crashTypes: [],
+  roadUsers: [],
+  roadFeatures: [],
+  dcaGroups: [],
 }
 
 function matchesTimeRange(hour: number, range: CrashFilters["timeRange"]) {
@@ -41,7 +41,10 @@ function matchesTimeRange(hour: number, range: CrashFilters["timeRange"]) {
   return true
 }
 
-function hasRoadUser(crash: CrashRecord, roadUser: CrashFilters["roadUser"]) {
+function hasRoadUser(
+  crash: CrashRecord,
+  roadUser: CrashFilters["roadUsers"][number]
+) {
   if (roadUser === "pedestrian") return crash.pedestrians > 0
   if (roadUser === "bicycle") return crash.bicycles > 0
   if (roadUser === "motorcycle") return crash.motorcycles > 0
@@ -97,12 +100,13 @@ export function App() {
         (filters.dayOfWeek === "any" ||
           crash.dayOfWeek === filters.dayOfWeek) &&
         matchesTimeRange(crash.hour, filters.timeRange) &&
-        (filters.crashType === "any" ||
-          crash.crashType === filters.crashType) &&
-        hasRoadUser(crash, filters.roadUser) &&
-        (filters.roadFeature === "any" ||
-          crash.roadwayFeature === filters.roadFeature) &&
-        (filters.dcaGroup === "any" || crash.dcaGroup === filters.dcaGroup)
+        (!filters.crashTypes.length ||
+          filters.crashTypes.includes(crash.crashType)) &&
+        (!filters.roadUsers.length ||
+          filters.roadUsers.some((roadUser) => hasRoadUser(crash, roadUser))) &&
+        (!filters.roadFeatures.length ||
+          filters.roadFeatures.includes(crash.roadwayFeature)) &&
+        (!filters.dcaGroups.length || filters.dcaGroups.includes(crash.dcaGroup))
       )
     })
   }, [crashes, filters])
@@ -114,10 +118,10 @@ export function App() {
         filters.severities.length !== SEVERITIES.length,
         filters.dayOfWeek !== "any",
         filters.timeRange !== "any",
-        filters.crashType !== "any",
-        filters.roadUser !== "any",
-        filters.roadFeature !== "any",
-        filters.dcaGroup !== "any",
+        filters.crashTypes.length > 0,
+        filters.roadUsers.length > 0,
+        filters.roadFeatures.length > 0,
+        filters.dcaGroups.length > 0,
       ].filter(Boolean).length,
     [filters]
   )
