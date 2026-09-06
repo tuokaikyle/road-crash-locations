@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Layers2, MapPin } from "lucide-react"
+import { Expand, Layers2, MapPin, Minimize2 } from "lucide-react"
 import Map, {
   Layer,
   NavigationControl,
@@ -14,12 +14,12 @@ import type { FeatureCollection, Point } from "geojson"
 import type { GeoJSONSource } from "maplibre-gl"
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
 
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select"
 import { SEVERITY_COLORS, type CrashRecord } from "@/lib/crashes"
 
@@ -111,9 +111,17 @@ const pointLayer: LayerProps = {
 type CrashMapProps = {
   crashes: CrashRecord[]
   fitRequest: number
+  isFullscreen: boolean
+  onToggleFullscreen: () => void
 }
 
-export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
+export function CrashMap({
+  crashes,
+  fitRequest,
+  isFullscreen,
+  onToggleFullscreen,
+}: CrashMapProps) {
+  const isMobileViewport = window.matchMedia("(max-width: 720px)").matches
   const mapRef = useRef<MapRef>(null)
   const handledFitRequest = useRef(0)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -164,9 +172,9 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
     mapRef.current?.fitBounds(bounds, {
       padding: 72,
       duration: 700,
-      maxZoom: 14,
+      maxZoom: isMobileViewport ? 9 : 14,
     })
-  }, [fitRequest, crashes])
+  }, [fitRequest, crashes, isMobileViewport])
 
   const handleClick = async (event: MapLayerMouseEvent) => {
     const feature = event.features?.[0]
@@ -216,10 +224,14 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
     <Map
       ref={mapRef}
       workerUrl={maplibreWorkerUrl}
-      initialViewState={{ longitude: 153.03, latitude: -27.47, zoom: 9.45 }}
+      initialViewState={{
+        longitude: 153.03,
+        latitude: -27.47,
+        zoom: isMobileViewport ? 9 : 9.45,
+      }}
       mapStyle={BASEMAP_STYLES[basemap]}
       maxBounds={[151.9, -28.4, 154.2, -26.4]}
-      minZoom={10}
+      minZoom={isMobileViewport ? 8 : 10}
       interactiveLayerIds={["crash-clusters", "crash-points"]}
       onClick={handleClick}
       onTouchEnd={handleTouchEnd}
@@ -307,6 +319,17 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
         </Popup>
       )}
       <div className="map-actions">
+        <Button
+          className="fullscreen-map-button"
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label={isFullscreen ? "Exit full screen" : "View map in full screen"}
+          title={isFullscreen ? "Exit full screen" : "View map in full screen"}
+          onClick={onToggleFullscreen}
+        >
+          {isFullscreen ? <Minimize2 /> : <Expand />}
+        </Button>
         <Select
           items={BASEMAP_OPTIONS}
           value={basemap}
@@ -321,9 +344,9 @@ export function CrashMap({ crashes, fitRequest }: CrashMapProps) {
             className="basemap-trigger"
             size="sm"
             aria-label="Basemap style"
+            title="Basemap style"
           >
             <Layers2 />
-            <SelectValue />
           </SelectTrigger>
           <SelectContent align="end">
             {BASEMAP_OPTIONS.map((option) => (
