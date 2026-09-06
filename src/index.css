@@ -220,7 +220,7 @@ button, input, select { font: inherit; }
 .maplibregl-ctrl-top-left { top: 8px; left: 8px; }
 
 @media (min-width: 721px) {
-  .map-legend { gap: 8px 14px; padding: 11px 13px; font-size: 11px; }
+  .map-legend { right: 12px; bottom: 12px; left: auto; gap: 8px 14px; padding: 11px 13px; font-size: 11px; }
   .map-legend i { width: 9px; height: 9px; }
   .checkbox-filter-expand { height: 22px; padding: 0 6px; font-size: 11px; }
 }
@@ -232,7 +232,7 @@ button, input, select { font: inherit; }
   .dataset-selector { min-width: 108px; }
   .workspace { grid-column: 1; grid-row: 2; display: block; min-height: 0; }
   .map-panel { width: 100%; height: 100%; min-height: 0; }
-  .map-legend { right: 12px; bottom: 72px; justify-content: center; }
+  .map-legend { right: 12px; bottom: 60px; justify-content: center; }
   .empty-results-toast { right: 12px; bottom: 128px; width: min(340px, calc(100% - 24px)); }
   .basemap-trigger, .fullscreen-map-button { display: none; }
   .mobile-filter-trigger { position: relative; display: inline-flex; flex: none; }

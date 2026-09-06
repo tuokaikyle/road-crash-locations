@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Expand, Layers2, MapPin, Minimize2 } from "lucide-react"
 import Map, {
+  AttributionControl,
   Layer,
   NavigationControl,
   Popup,
@@ -232,6 +233,7 @@ export function CrashMap({
         zoom: isMobileViewport ? 9 : 9.45,
       }}
       mapStyle={BASEMAP_STYLES[basemap]}
+      attributionControl={false}
       maxBounds={[151.9, -28.4, 154.2, -26.4]}
       minZoom={isMobileViewport ? 8 : 10}
       interactiveLayerIds={["crash-clusters", "crash-points"]}
@@ -245,6 +247,11 @@ export function CrashMap({
       cursor={cursor}
     >
       <NavigationControl position="top-left" showCompass={false} />
+      <AttributionControl
+        position={isMobileViewport ? "bottom-right" : "bottom-left"}
+        compact
+        customAttribution='<a href="https://maplibre.org/" target="_blank">MapLibre</a>'
+      />
       <Source
         id="crashes"
         type="geojson"
