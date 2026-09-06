@@ -181,7 +181,7 @@ button, input, select { font: inherit; }
 .filter-select-trigger [data-slot="select-value"] { justify-content: flex-end; text-align: right; }
 .wide-filter-select-content { width: max-content; min-width: var(--anchor-width); max-width: min(30rem, calc(100vw - 32px)); }
 .checkbox-filter + .checkbox-filter { margin-top: 10px; }
-.checkbox-filter-heading { display: flex; align-items: center; justify-content: space-between; min-height: 20px; color: var(--muted-foreground); font-size: 11px; }
+.checkbox-filter-heading { display: flex; align-items: center; justify-content: space-between; min-height: 24px; color: var(--muted-foreground); font-size: 11px; }
 .checkbox-filter-clear, .checkbox-filter-expand { color: var(--muted-foreground); }
 .checkbox-filter-options { gap: 6px; margin-top: 3px; }
 .checkbox-filter-option { gap: 8px; }
@@ -234,7 +234,7 @@ button, input, select { font: inherit; }
   .map-panel { width: 100%; height: 100%; min-height: 0; }
   .map-legend { right: 12px; bottom: 72px; justify-content: center; }
   .empty-results-toast { right: 12px; bottom: 128px; width: min(340px, calc(100% - 24px)); }
-  .map-actions { top: 10px; right: 10px; }
+  .basemap-trigger, .fullscreen-map-button { display: none; }
   .mobile-filter-trigger { position: relative; display: inline-flex; flex: none; }
   .filter-count-badge { position: absolute; top: -6px; right: -6px; height: 17px; min-width: 17px; padding: 0 4px; font-size: 10px; border: 2px solid var(--background); }
   .desktop-filter-panel { display: none; }
