@@ -38,7 +38,6 @@ const BASEMAP_STORAGE_KEY = "brisbane-crash-map-basemap"
 const INITIAL_ZOOM = 10
 const FIT_MAX_ZOOM = 10
 const CLUSTER_INDEX_RADIUS = 96
-const CLUSTER_MAX_ZOOM = 14
 
 type Basemap = keyof typeof BASEMAPS
 type CrashFeatureProperties = { id: number; severity: CrashSeverity }
@@ -171,7 +170,6 @@ export function CrashMap({
   const clusterIndexRef = useRef<Supercluster<CrashFeatureProperties> | null>(
     null
   )
-  const activeTooltipRef = useRef<L.Tooltip | null>(null)
   const redrawRef = useRef<() => void>(() => undefined)
   const handledFitRequest = useRef(0)
   const [basemap, setBasemap] = useState<Basemap>(getInitialBasemap)
@@ -193,11 +191,6 @@ export function CrashMap({
     [crashes]
   )
 
-  const closeActiveTooltip = useCallback(() => {
-    activeTooltipRef.current?.remove()
-    activeTooltipRef.current = null
-  }, [])
-
   const redrawMarkers = useCallback(() => {
     const map = mapRef.current
     const markerLayer = markerLayerRef.current
@@ -205,7 +198,6 @@ export function CrashMap({
     const clusterIndex = clusterIndexRef.current
     if (!map || !markerLayer || !canvasRenderer || !clusterIndex) return
 
-    closeActiveTooltip()
     markerLayer.clearLayers()
     const bounds = map.getBounds()
     const zoom = Math.round(map.getZoom())
@@ -257,19 +249,17 @@ export function CrashMap({
         fillOpacity: 1,
         bubblingMouseEvents: false,
       })
+      marker.bindTooltip(createTooltipContent(crash), {
+        direction: "top",
+        opacity: 1,
+        className: "crash-tooltip-container",
+      })
       marker.on("click", () => {
-        closeActiveTooltip()
-        activeTooltipRef.current = L.tooltip(position, {
-          direction: "top",
-          opacity: 1,
-          className: "crash-tooltip-container",
-        })
-          .setContent(createTooltipContent(crash))
-          .addTo(map)
+        marker.openTooltip()
       })
       markerLayer.addLayer(marker)
     }
-  }, [closeActiveTooltip, crashesById])
+  }, [crashesById])
 
   useEffect(() => {
     const container = mapContainerRef.current
@@ -297,21 +287,17 @@ export function CrashMap({
     markerLayerRef.current = markerLayer
     canvasRendererRef.current = canvasRenderer
     resizeObserver.observe(container)
-    const handleMoveEnd = () => redrawRef.current()
-    map.on("moveend", handleMoveEnd)
-    map.on("movestart", closeActiveTooltip)
+    map.on("moveend zoomend", () => redrawRef.current())
 
     return () => {
       resizeObserver.disconnect()
-      map.off("moveend", handleMoveEnd)
-      map.off("movestart", closeActiveTooltip)
       map.remove()
       mapRef.current = null
       markerLayerRef.current = null
       canvasRendererRef.current = null
       tileLayerRef.current = null
     }
-  }, [closeActiveTooltip])
+  }, [])
 
   useEffect(() => {
     const map = mapRef.current
@@ -327,7 +313,7 @@ export function CrashMap({
   useEffect(() => {
     const clusterIndex = new Supercluster<CrashFeatureProperties>({
       radius: CLUSTER_INDEX_RADIUS,
-      maxZoom: CLUSTER_MAX_ZOOM,
+      maxZoom: 10,
     })
     clusterIndex.load(crashFeatures)
     clusterIndexRef.current = clusterIndex
@@ -392,9 +378,7 @@ export function CrashMap({
           type="button"
           variant="outline"
           size="icon-sm"
-          aria-label={
-            isFullscreen ? "Exit full screen" : "View map in full screen"
-          }
+          aria-label={isFullscreen ? "Exit full screen" : "View map in full screen"}
           title={isFullscreen ? "Exit full screen" : "View map in full screen"}
           onClick={onToggleFullscreen}
         >
