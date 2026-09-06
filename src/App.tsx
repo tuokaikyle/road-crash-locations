@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { LoaderCircle, Road, SlidersHorizontal } from "lucide-react"
 
 import { CrashMap } from "@/components/crash-map"
@@ -59,6 +59,8 @@ export function App() {
   const [error, setError] = useState("")
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [emptyResultsDismissed, setEmptyResultsDismissed] = useState(false)
+  const [mapFullscreen, setMapFullscreen] = useState(false)
+  const mapPanelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -145,6 +147,26 @@ export function App() {
     return () => window.clearTimeout(timeout)
   }, [crashes.length, emptyResultsDismissed, filteredCrashes.length])
 
+  useEffect(() => {
+    const updateFullscreenState = () => {
+      setMapFullscreen(document.fullscreenElement === mapPanelRef.current)
+    }
+    document.addEventListener("fullscreenchange", updateFullscreenState)
+    return () =>
+      document.removeEventListener("fullscreenchange", updateFullscreenState)
+  }, [])
+
+  const toggleMapFullscreen = () => {
+    const mapPanel = mapPanelRef.current
+    if (!mapPanel) return
+
+    const fullscreenAction =
+      document.fullscreenElement === mapPanel
+        ? document.exitFullscreen()
+        : mapPanel.requestFullscreen()
+    void fullscreenAction.catch(() => undefined)
+  }
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -188,14 +210,19 @@ export function App() {
       </header>
 
       <section className="workspace">
-        <div className="map-panel">
+        <div className="map-panel" ref={mapPanelRef}>
           {error ? (
             <div className="map-message">
               <strong>We couldn’t load the crash data.</strong>
               <span>{error}</span>
             </div>
           ) : crashes.length ? (
-            <CrashMap crashes={filteredCrashes} fitRequest={1} />
+            <CrashMap
+              crashes={filteredCrashes}
+              fitRequest={1}
+              isFullscreen={mapFullscreen}
+              onToggleFullscreen={toggleMapFullscreen}
+            />
           ) : (
             <div className="map-message">
               <LoaderCircle className="spin" />
