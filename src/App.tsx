@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Filter, LoaderCircle, Road } from "lucide-react"
+import { LoaderCircle, Road } from "lucide-react"
 
 import { CrashMap } from "@/components/crash-map"
 import { FilterPanel, type CrashFilters } from "@/components/filter-panel"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -213,22 +211,6 @@ export function App() {
           </SelectContent>
         </Select>
 
-        <Button
-          className="mobile-filter-trigger"
-          type="button"
-          size="icon-sm"
-          variant="outline"
-          aria-haspopup="dialog"
-          aria-expanded={mobileFiltersOpen}
-          onClick={() => setMobileFiltersOpen(true)}
-        >
-          <Filter size={14} />
-          {activeFilterCount > 0 && (
-            <Badge className="filter-count-badge" variant="secondary">
-              {activeFilterCount}
-            </Badge>
-          )}
-        </Button>
       </header>
 
       <section className="workspace">
@@ -244,6 +226,9 @@ export function App() {
               fitRequest={1}
               isFullscreen={mapFullscreen}
               onToggleFullscreen={toggleMapFullscreen}
+              activeFilterCount={activeFilterCount}
+              mobileFiltersOpen={mobileFiltersOpen}
+              onOpenFilters={() => setMobileFiltersOpen(true)}
             />
           ) : (
             <div className="map-message">

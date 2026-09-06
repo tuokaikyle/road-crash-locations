@@ -5,7 +5,7 @@ Brisbane area. Choose a dataset, narrow it with filters, and inspect individual
 crashes directly on the map.
 
 The application is a client-side Vite app: the bundled TSV datasets are parsed
-in the browser and rendered as a clustered MapLibre GeoJSON layer. No backend
+in the browser and rendered as a clustered Leaflet overlay. No backend
 is required.
 
 ## Highlights
@@ -15,10 +15,10 @@ is required.
 - Crash popups with the day and time, crash type, involved road users, road
   surface, road feature, DCA group, location, and crash reference.
 - Desktop filtering sidebar and a mobile bottom-sheet equivalent.
-- Search by street or suburb, plus filters for severity, month, time of day,
-  crash type, road user, road surface, road feature, and DCA group.
+- Search by street or suburb, plus filters for severity, day of week, time of
+  day, crash type, road user, road feature, and DCA group.
 - 2024 full-year and 2025 Jan–Jun dataset snapshots.
-- Light, streets, and dark basemaps; the selected style is remembered locally.
+- OpenStreetMap and OpenTopoMap basemaps; the selected style is remembered locally.
 - Full-screen map mode and touch-friendly crash selection on mobile.
 
 ## Stack
@@ -26,7 +26,7 @@ is required.
 - [React](https://react.dev) and [TypeScript](https://www.typescriptlang.org)
 - [Vite](https://vite.dev) and [Bun](https://bun.sh)
 - [Tailwind CSS](https://tailwindcss.com), [shadcn/ui](https://ui.shadcn.com), and [Base UI](https://base-ui.com)
-- [MapLibre GL](https://maplibre.org) with [`react-map-gl`](https://visgl.github.io/react-map-gl)
+- [Leaflet](https://leafletjs.com) with canvas-rendered points and [`supercluster`](https://github.com/mapbox/supercluster)
 - [Lucide](https://lucide.dev) icons
 
 ## Run locally
@@ -92,7 +92,7 @@ operational or safety-critical decisions.
 src/
 ├── App.tsx                     # Layout, data loading, filter and full-screen state
 ├── components/
-│   ├── crash-map.tsx           # MapLibre map, clustering, controls, and crash popup
+│   ├── crash-map.tsx           # Leaflet map, clustering, controls, and crash popup
 │   ├── filter-panel.tsx        # Desktop sidebar and mobile filter sheet
 │   └── ui/                     # Shared Base UI / shadcn components
 ├── lib/
@@ -100,12 +100,6 @@ src/
 └── index.css                   # App layout and responsive styling
 ```
 
-## Configuration
+## Basemaps
 
-Set `VITE_MAP_STYLE_URL` to override the URL used by the **Streets** basemap:
-
-```bash
-VITE_MAP_STYLE_URL="https://example.com/style.json" bun run dev
-```
-
-The light and dark map styles use OpenFreeMap by default.
+The default OpenStreetMap layer and optional OpenTopoMap layer do not require API keys. They are intended for normal interactive viewing: do not prefetch tiles or add offline-download features, and keep their required attribution visible.

@@ -1,46 +1,50 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Expand, Layers2, MapPin, Minimize2 } from "lucide-react"
-import Map, {
-  AttributionControl,
-  Layer,
-  NavigationControl,
-  Popup,
-  Source,
-  type LayerProps,
-  type MapLayerMouseEvent,
-  type MapLayerTouchEvent,
-  type MapRef,
-} from "react-map-gl/maplibre"
-import type { FeatureCollection, Point } from "geojson"
-import type { GeoJSONSource } from "maplibre-gl"
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Expand, Filter, Layers2, Minimize2 } from "lucide-react"
+import * as L from "leaflet"
+import Supercluster from "supercluster"
+import type { Feature, Point } from "geojson"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select"
-import { SEVERITY_COLORS, type CrashRecord } from "@/lib/crashes"
+import {
+  SEVERITY_COLORS,
+  type CrashRecord,
+  type CrashSeverity,
+} from "@/lib/crashes"
 
-import "maplibre-gl/dist/maplibre-gl.css"
+import "leaflet/dist/leaflet.css"
 
-const BASEMAP_STYLES = {
-  light: "https://tiles.openfreemap.org/styles/positron",
-  streets:
-    import.meta.env.VITE_MAP_STYLE_URL ||
-    "https://tiles.openfreemap.org/styles/liberty",
-  dark: "https://tiles.openfreemap.org/styles/dark",
+const BASEMAPS = {
+  openstreetmap: {
+    label: "OpenStreetMap",
+    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  opentopomap: {
+    label: "OpenTopoMap",
+    url: "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+    attribution:
+      'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="https://www.opentopomap.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+  },
 } as const
 const BASEMAP_STORAGE_KEY = "brisbane-crash-map-basemap"
+const INITIAL_ZOOM = 10
+const FIT_MAX_ZOOM = 10
+const CLUSTER_INDEX_RADIUS = 96
 
-type Basemap = keyof typeof BASEMAP_STYLES
+type Basemap = keyof typeof BASEMAPS
+type CrashFeatureProperties = { id: number; severity: CrashSeverity }
 
 const BASEMAP_OPTIONS: { value: Basemap; label: string }[] = [
-  { value: "light", label: "Light" },
-  { value: "streets", label: "Streets" },
-  { value: "dark", label: "Dark" },
+  { value: "openstreetmap", label: "OpenStreetMap" },
+  { value: "opentopomap", label: "OpenTopoMap" },
 ]
 
 function roadUserLabel(crash: CrashRecord) {
@@ -61,54 +65,66 @@ function roadUserLabel(crash: CrashRecord) {
 
 function getInitialBasemap(): Basemap {
   const storedBasemap = localStorage.getItem(BASEMAP_STORAGE_KEY)
-  return storedBasemap && storedBasemap in BASEMAP_STYLES
+  return storedBasemap && storedBasemap in BASEMAPS
     ? (storedBasemap as Basemap)
-    : "light"
+    : "openstreetmap"
 }
 
-const clusterLayer: LayerProps = {
-  id: "crash-clusters",
-  type: "circle",
-  source: "crashes",
-  filter: ["has", "point_count"],
-  paint: {
-    "circle-color": "#262626",
-    "circle-radius": ["step", ["get", "point_count"], 20, 30, 25, 100, 32],
-    "circle-stroke-width": 3,
-    "circle-stroke-color": "rgba(255,255,255,.88)",
-  },
+function createPopupContent(crash: CrashRecord) {
+  const streetLabel =
+    [crash.street, crash.intersectingStreet].filter(Boolean).join(" & ") ||
+    crash.stateRoadName ||
+    "Location recorded"
+  const content = document.createElement("article")
+  content.className = "crash-popup"
+
+  const title = document.createElement("h3")
+  title.className = "popup-kicker"
+  const dot = document.createElement("span")
+  dot.className = "severity-dot"
+  dot.style.backgroundColor = SEVERITY_COLORS[crash.severity]
+  title.append(dot, document.createTextNode(crash.severity))
+
+  const place = document.createElement("div")
+  place.className = "popup-place"
+  const location = document.createElement("span")
+  location.className = "popup-location"
+  location.textContent = `${streetLabel}, ${crash.suburb}`
+  place.append(location)
+
+  const details = document.createElement("dl")
+  const rows: [string, string][] = [
+    ["Time", `${String(crash.hour).padStart(2, "0")}:00 · ${crash.dayOfWeek}`],
+    ["Crash type", crash.crashType || "Not recorded"],
+    ["Road user", roadUserLabel(crash)],
+    ["Road surface", crash.surfaceCondition || "Not recorded"],
+    ["Road feature", crash.roadwayFeature || "Not recorded"],
+    ["DCA group", crash.dcaGroup.replace(/^\d+: /, "") || "Not recorded"],
+  ]
+  for (const [label, value] of rows) {
+    const row = document.createElement("div")
+    const term = document.createElement("dt")
+    term.textContent = label
+    const definition = document.createElement("dd")
+    definition.textContent = value
+    row.append(term, definition)
+    details.append(row)
+  }
+
+  const reference = document.createElement("small")
+  reference.textContent = `Crash reference ${crash.reference}`
+  content.append(title, place, details, reference)
+  return content
 }
 
-const clusterCountLayer: LayerProps = {
-  id: "crash-cluster-count",
-  type: "symbol",
-  source: "crashes",
-  filter: ["has", "point_count"],
-  layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 12 },
-  paint: { "text-color": "#ffffff" },
+function clusterRadius(pointCount: number) {
+  if (pointCount >= 100) return 24
+  if (pointCount >= 30) return 20
+  return 16
 }
 
-const pointLayer: LayerProps = {
-  id: "crash-points",
-  type: "circle",
-  source: "crashes",
-  filter: ["!", ["has", "point_count"]],
-  paint: {
-    "circle-color": [
-      "match",
-      ["get", "severity"],
-      "Fatal",
-      SEVERITY_COLORS.Fatal,
-      "Hospitalisation",
-      SEVERITY_COLORS.Hospitalisation,
-      "Medical treatment",
-      SEVERITY_COLORS["Medical treatment"],
-      SEVERITY_COLORS["Minor injury"],
-    ],
-    "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 4.5, 15, 8],
-    "circle-stroke-width": 1.5,
-    "circle-stroke-color": "#ffffff",
-  },
+function pointRadius(zoom: number) {
+  return Math.min(8, Math.max(4.5, 4.5 + (zoom - 9) * 0.58))
 }
 
 type CrashMapProps = {
@@ -116,6 +132,9 @@ type CrashMapProps = {
   fitRequest: number
   isFullscreen: boolean
   onToggleFullscreen: () => void
+  activeFilterCount: number
+  mobileFiltersOpen: boolean
+  onOpenFilters: () => void
 }
 
 export function CrashMap({
@@ -123,17 +142,25 @@ export function CrashMap({
   fitRequest,
   isFullscreen,
   onToggleFullscreen,
+  activeFilterCount,
+  mobileFiltersOpen,
+  onOpenFilters,
 }: CrashMapProps) {
-  const isMobileViewport = window.matchMedia("(max-width: 720px)").matches
-  const mapRef = useRef<MapRef>(null)
+  const mapContainerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const tileLayerRef = useRef<L.TileLayer | null>(null)
+  const markerLayerRef = useRef<L.LayerGroup | null>(null)
+  const canvasRendererRef = useRef<L.Canvas | null>(null)
+  const clusterIndexRef = useRef<Supercluster<CrashFeatureProperties> | null>(
+    null
+  )
+  const redrawRef = useRef<() => void>(() => undefined)
   const handledFitRequest = useRef(0)
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [cursor, setCursor] = useState("grab")
   const [basemap, setBasemap] = useState<Basemap>(getInitialBasemap)
-  const geoJson = useMemo<FeatureCollection<Point>>(
-    () => ({
-      type: "FeatureCollection",
-      features: crashes.map((crash) => ({
+
+  const crashFeatures = useMemo<Feature<Point, CrashFeatureProperties>[]>(
+    () =>
+      crashes.map((crash) => ({
         type: "Feature",
         geometry: {
           type: "Point",
@@ -141,13 +168,145 @@ export function CrashMap({
         },
         properties: { id: crash.id, severity: crash.severity },
       })),
-    }),
     [crashes]
   )
-  const selectedCrash =
-    selectedId === null
-      ? null
-      : (crashes.find((crash) => crash.id === selectedId) ?? null)
+  const crashesById = useMemo(
+    () => new Map(crashes.map((crash) => [crash.id, crash])),
+    [crashes]
+  )
+
+  const redrawMarkers = useCallback(() => {
+    const map = mapRef.current
+    const markerLayer = markerLayerRef.current
+    const canvasRenderer = canvasRendererRef.current
+    const clusterIndex = clusterIndexRef.current
+    if (!map || !markerLayer || !canvasRenderer || !clusterIndex) return
+
+    markerLayer.clearLayers()
+    const bounds = map.getBounds()
+    const zoom = Math.round(map.getZoom())
+    const features = clusterIndex.getClusters(
+      [
+        bounds.getWest(),
+        bounds.getSouth(),
+        bounds.getEast(),
+        bounds.getNorth(),
+      ],
+      zoom
+    )
+
+    for (const feature of features) {
+      const [longitude, latitude] = feature.geometry.coordinates
+      const position: L.LatLngExpression = [latitude, longitude]
+
+      if ("cluster" in feature.properties && feature.properties.cluster) {
+        const { cluster_id: clusterId, point_count: pointCount } =
+          feature.properties
+        const radius = clusterRadius(pointCount)
+        const marker = L.marker(position, {
+          icon: L.divIcon({
+            className: "crash-cluster-marker",
+            html: `<span>${pointCount}</span>`,
+            iconSize: [radius * 2, radius * 2],
+            iconAnchor: [radius, radius],
+          }),
+          keyboard: true,
+          title: `${pointCount} crashes. Tap to zoom in.`,
+        })
+        marker.on("click", () => {
+          map.flyTo(position, clusterIndex.getClusterExpansionZoom(clusterId), {
+            duration: 0.5,
+          })
+        })
+        markerLayer.addLayer(marker)
+        continue
+      }
+
+      const crash = crashesById.get(feature.properties.id)
+      if (!crash) continue
+      const marker = L.circleMarker(position, {
+        renderer: canvasRenderer,
+        radius: pointRadius(zoom),
+        color: "#ffffff",
+        weight: 1.5,
+        fillColor: SEVERITY_COLORS[crash.severity],
+        fillOpacity: 1,
+        bubblingMouseEvents: false,
+      })
+      marker.bindTooltip(crash.severity, { direction: "top", opacity: 0.9 })
+      marker.on("click", () => {
+        L.popup({ maxWidth: 310, offset: [0, -8] })
+          .setLatLng(position)
+          .setContent(createPopupContent(crash))
+          .openOn(map)
+      })
+      markerLayer.addLayer(marker)
+    }
+  }, [crashesById])
+
+  useEffect(() => {
+    const container = mapContainerRef.current
+    if (!container) return
+
+    const map = L.map(container, {
+      center: [-27.47, 153.03],
+      zoom: INITIAL_ZOOM,
+      minZoom: 6,
+      maxBounds: [
+        [-28.4, 151.9],
+        [-26.4, 154.2],
+      ],
+      zoomControl: true,
+      attributionControl: true,
+      preferCanvas: true,
+    })
+    const markerLayer = L.layerGroup().addTo(map)
+    const canvasRenderer = L.canvas({ padding: 0.25 })
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize({ pan: false, debounceMoveend: true })
+    })
+
+    mapRef.current = map
+    markerLayerRef.current = markerLayer
+    canvasRendererRef.current = canvasRenderer
+    resizeObserver.observe(container)
+    map.on("moveend zoomend", () => redrawRef.current())
+
+    return () => {
+      resizeObserver.disconnect()
+      map.remove()
+      mapRef.current = null
+      markerLayerRef.current = null
+      canvasRendererRef.current = null
+      tileLayerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    tileLayerRef.current?.remove()
+    tileLayerRef.current = L.tileLayer(BASEMAPS[basemap].url, {
+      attribution: BASEMAPS[basemap].attribution,
+      maxZoom: 19,
+    }).addTo(map)
+  }, [basemap])
+
+  useEffect(() => {
+    const clusterIndex = new Supercluster<CrashFeatureProperties>({
+      radius: CLUSTER_INDEX_RADIUS,
+      maxZoom: 10,
+    })
+    clusterIndex.load(crashFeatures)
+    clusterIndexRef.current = clusterIndex
+    redrawRef.current()
+  }, [crashFeatures])
+
+  useEffect(() => {
+    redrawRef.current = redrawMarkers
+    redrawMarkers()
+  }, [redrawMarkers])
 
   useEffect(() => {
     if (
@@ -156,178 +315,47 @@ export function CrashMap({
       handledFitRequest.current === fitRequest
     )
       return
+    const map = mapRef.current
+    if (!map) return
+
     handledFitRequest.current = fitRequest
-    const bounds = crashes.reduce(
-      (current, crash) =>
-        [
-          Math.min(current[0], crash.longitude),
-          Math.min(current[1], crash.latitude),
-          Math.max(current[2], crash.longitude),
-          Math.max(current[3], crash.latitude),
-        ] as [number, number, number, number],
-      [Infinity, Infinity, -Infinity, -Infinity] as [
-        number,
-        number,
-        number,
-        number,
-      ]
+    map.fitBounds(
+      crashes.map((crash) => [crash.latitude, crash.longitude]),
+      {
+        padding: [72, 72],
+        maxZoom: FIT_MAX_ZOOM,
+        animate: true,
+        duration: 0.7,
+      }
     )
-    mapRef.current?.fitBounds(bounds, {
-      padding: 72,
-      duration: 700,
-      maxZoom: isMobileViewport ? 9 : 14,
-    })
-  }, [fitRequest, crashes, isMobileViewport])
+  }, [crashes, fitRequest])
 
-  const handleClick = async (event: MapLayerMouseEvent) => {
-    const feature = event.features?.[0]
-    if (!feature || feature.layer.id !== "crash-clusters") return
-
-    const clusterId = Number(feature.properties?.cluster_id)
-    const source = mapRef.current?.getSource("crashes") as
-      GeoJSONSource | undefined
-    if (!source || !Number.isFinite(clusterId)) return
-    const zoom = await source.getClusterExpansionZoom(clusterId)
-    const [longitude, latitude] = (feature.geometry as Point).coordinates
-    mapRef.current?.easeTo({
-      center: [longitude, latitude],
-      zoom,
-      duration: 500,
-    })
-  }
-
-  const handleTouchEnd = (event: MapLayerTouchEvent) => {
-    const feature = event.features?.[0]
-    setSelectedId(
-      feature?.layer.id === "crash-points"
-        ? Number(feature.properties?.id)
-        : null
-    )
-  }
-
-  const handleMouseMove = (event: MapLayerMouseEvent) => {
-    const feature = event.features?.[0]
-    setCursor(feature ? "pointer" : "grab")
-    setSelectedId(
-      feature?.layer.id === "crash-points"
-        ? Number(feature.properties?.id)
-        : null
-    )
-  }
-
-  const streetLabel = selectedCrash
-    ? [selectedCrash.street, selectedCrash.intersectingStreet]
-        .filter(Boolean)
-        .join(" & ") ||
-      selectedCrash.stateRoadName ||
-      "Location recorded"
-    : ""
+  useEffect(() => {
+    mapRef.current?.invalidateSize({ pan: false })
+  }, [isFullscreen])
 
   return (
-    <Map
-      ref={mapRef}
-      workerUrl={maplibreWorkerUrl}
-      initialViewState={{
-        longitude: 153.03,
-        latitude: -27.47,
-        zoom: isMobileViewport ? 9 : 9.45,
-      }}
-      mapStyle={BASEMAP_STYLES[basemap]}
-      attributionControl={false}
-      maxBounds={[151.9, -28.4, 154.2, -26.4]}
-      minZoom={isMobileViewport ? 8 : 10}
-      interactiveLayerIds={["crash-clusters", "crash-points"]}
-      onClick={handleClick}
-      onTouchEnd={handleTouchEnd}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => {
-        setCursor("grab")
-        setSelectedId(null)
-      }}
-      cursor={cursor}
-    >
-      <NavigationControl position="top-left" showCompass={false} />
-      <AttributionControl
-        position={isMobileViewport ? "bottom-right" : "bottom-left"}
-        compact
-        customAttribution='<a href="https://maplibre.org/" target="_blank">MapLibre</a>'
-      />
-      <Source
-        id="crashes"
-        type="geojson"
-        data={geoJson}
-        cluster
-        clusterMaxZoom={10}
-        clusterRadius={36}
-      >
-        <Layer {...clusterLayer} />
-        <Layer {...clusterCountLayer} />
-        <Layer {...pointLayer} />
-      </Source>
-      {selectedCrash && (
-        <Popup
-          longitude={selectedCrash.longitude}
-          latitude={selectedCrash.latitude}
-          anchor="bottom"
-          offset={10}
-          maxWidth="310px"
-          closeButton={false}
-          closeOnClick={false}
-          onClose={() => setSelectedId(null)}
-        >
-          <article className="crash-popup">
-            <h3 className="popup-kicker">
-              <span
-                className="severity-dot"
-                style={{
-                  backgroundColor: SEVERITY_COLORS[selectedCrash.severity],
-                }}
-              />
-              {selectedCrash.severity}
-            </h3>
-            <div className="popup-place">
-              <span className="popup-location">
-                <MapPin size={13} />
-                {streetLabel}, {selectedCrash.suburb}
-              </span>
-            </div>
-            <dl>
-              <div>
-                <dt>Time</dt>
-                <dd>
-                  {String(selectedCrash.hour).padStart(2, "0")}:00 ·{" "}
-                  {selectedCrash.dayOfWeek}
-                </dd>
-              </div>
-              <div>
-                <dt>Crash type</dt>
-                <dd>{selectedCrash.crashType || "Not recorded"}</dd>
-              </div>
-              <div>
-                <dt>Road user</dt>
-                <dd>{roadUserLabel(selectedCrash)}</dd>
-              </div>
-              <div>
-                <dt>Road surface</dt>
-                <dd>{selectedCrash.surfaceCondition || "Not recorded"}</dd>
-              </div>
-              <div>
-                <dt>Road feature</dt>
-                <dd>{selectedCrash.roadwayFeature || "Not recorded"}</dd>
-              </div>
-              <div>
-                <dt>DCA group</dt>
-                <dd>
-                  {selectedCrash.dcaGroup.replace(/^\d+: /, "") ||
-                    "Not recorded"}
-                </dd>
-              </div>
-            </dl>
-            <small>Crash reference {selectedCrash.reference}</small>
-          </article>
-        </Popup>
-      )}
+    <>
+      <div className="leaflet-map" ref={mapContainerRef} />
       <div className="map-actions">
+        <Button
+          className="mobile-filter-trigger"
+          type="button"
+          size="icon-sm"
+          variant="outline"
+          aria-haspopup="dialog"
+          aria-expanded={mobileFiltersOpen}
+          aria-label="Open filters"
+          title="Open filters"
+          onClick={onOpenFilters}
+        >
+          <Filter size={14} />
+          {activeFilterCount > 0 && (
+            <Badge className="filter-count-badge" variant="secondary">
+              {activeFilterCount}
+            </Badge>
+          )}
+        </Button>
         <Button
           className="fullscreen-map-button"
           type="button"
@@ -346,7 +374,6 @@ export function CrashMap({
             if (!nextBasemap) return
             setBasemap(nextBasemap)
             localStorage.setItem(BASEMAP_STORAGE_KEY, nextBasemap)
-            setSelectedId(null)
           }}
         >
           <SelectTrigger
@@ -366,6 +393,6 @@ export function CrashMap({
           </SelectContent>
         </Select>
       </div>
-    </Map>
+    </>
   )
 }
