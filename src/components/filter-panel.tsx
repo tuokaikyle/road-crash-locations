@@ -81,7 +81,7 @@ function FilterFooterInfo() {
         </a>
       </p>
       <p className="filter-attribution">
-        Data source:{" "}
+        Contains Queensland Government{" "}
         <a
           href="https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0"
           target="_blank"
@@ -89,7 +89,7 @@ function FilterFooterInfo() {
         >
           Road crash locations
         </a>
-        {", "}under{" "}
+        {", "}filtered for this map, under{" "}
         <a
           href="https://creativecommons.org/licenses/by/4.0/"
           target="_blank"
@@ -97,6 +97,7 @@ function FilterFooterInfo() {
         >
           CC BY 4.0
         </a>
+        . No endorsement implied.
       </p>
     </>
   )
