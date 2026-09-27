@@ -192,6 +192,9 @@ button, input, select { font: inherit; }
 .filter-attribution { margin: 12px 0 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.5; text-align: center; }
 .filter-attribution a { color: var(--muted-foreground); text-decoration: underline; text-underline-offset: 2px; }
 .filter-attribution a:hover { color: var(--foreground); }
+.filter-repo { display: flex; margin: 12px 0 0; }
+.filter-repo a { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 1px solid var(--border); border-radius: 10px; color: var(--muted-foreground); font-size: 10px; font-weight: 650; text-decoration: none; transition: background .15s ease, color .15s ease; }
+.filter-repo a:hover, .filter-repo a:focus-visible { background: var(--muted); color: var(--foreground); }
 .map-actions { position: absolute; z-index: 2; top: 12px; right: 12px; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
 .basemap-trigger, .fullscreen-map-button { background: color-mix(in oklch, var(--background) 94%, transparent); box-shadow: 0 5px 18px rgba(0, 0, 0, .12); font-size: 11px; font-weight: 650; backdrop-filter: blur(8px); }
 .basemap-trigger { position: relative; width: 28px; min-width: 28px; padding: 0; justify-content: center; }
@@ -242,6 +245,8 @@ button, input, select { font: inherit; }
   .mobile-filter-sheet .filter-heading { flex: none; }
   .mobile-close { display: inline-flex; }
   .mobile-filter-footer { display: grid; gap: 9px; margin: auto -20px 0; padding: 16px 20px calc(8px + env(safe-area-inset-bottom)); }
+  .mobile-filter-footer .filter-repo,
+  .mobile-filter-footer .filter-attribution { margin-top: 0; }
   .mobile-filter-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .mobile-filter-footer button { width: 100%; }
   .mobile-filter-actions + .filter-attribution { margin: 0; padding-top: 2px; font-size: 9px; }

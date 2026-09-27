@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { RotateCcw, Search, X } from "lucide-react"
+import { ExternalLink, RotateCcw, Search, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -67,6 +67,39 @@ function sortedOptions(values: string[], preferredOrder?: string[]) {
       (a, b) => preferredOrder.indexOf(a) - preferredOrder.indexOf(b)
     )
   return unique.sort((a, b) => a.localeCompare(b))
+}
+
+const GITHUB_URL = "https://github.com/tuokaikyle/road-crash-locations"
+
+function FilterFooterInfo() {
+  return (
+    <>
+      <p className="filter-repo">
+        <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+          <ExternalLink size={12} strokeWidth={2.2} aria-hidden="true" />
+          Source code on GitHub
+        </a>
+      </p>
+      <p className="filter-attribution">
+        Data source:{" "}
+        <a
+          href="https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Road crash locations
+        </a>
+        {", "}under{" "}
+        <a
+          href="https://creativecommons.org/licenses/by/4.0/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          CC BY 4.0
+        </a>
+      </p>
+    </>
+  )
 }
 
 export function FilterPanel({
@@ -263,25 +296,7 @@ export function FilterPanel({
             <RotateCcw />
             Reset
           </Button>
-          <p className="filter-attribution">
-            Contains Queensland Government{" "}
-            <a
-              href="https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Road crash locations
-            </a>
-            {", "}filtered for this map, under{" "}
-            <a
-              href="https://creativecommons.org/licenses/by/4.0/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              CC BY 4.0
-            </a>
-            . No endorsement implied.
-          </p>
+          <FilterFooterInfo />
         </div>
       )}
 
@@ -301,25 +316,7 @@ export function FilterPanel({
               Show results
             </SheetClose>
           </div>
-          <p className="filter-attribution">
-            Contains Queensland Government{" "}
-            <a
-              href="https://www.data.qld.gov.au/dataset/crash-data-from-queensland-roads/resource/e88943c0-5968-4972-a15f-38e120d72ec0"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Road crash locations
-            </a>
-            {", "}filtered for this map, under{" "}
-            <a
-              href="https://creativecommons.org/licenses/by/4.0/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              CC BY 4.0
-            </a>
-            . No endorsement implied.
-          </p>
+          <FilterFooterInfo />
         </div>
       )}
     </>
